@@ -1,0 +1,27 @@
+# Reproducible build definition for arduino-cli (>= 1.3.0).
+#
+#   git submodule update --init          # fetches the two non-registry libraries
+#   arduino-cli compile --profile wrover --build-property "compiler.cpp.extra_flags=-DTEMPLATE_PLACEHOLDER='~'"
+#
+# Everything is pinned. Bump versions deliberately, one at a time, and re-test on hardware.
+# The TEMPLATE_PLACEHOLDER flag replaces the old manual edit of the ESPAsyncWebServer header
+# (data/*.html and data/js/chart.js use ~VAR~ placeholders).
+
+profiles:
+  wrover:
+    notes: ESP32-WROVER (with PSRAM), e.g. TTGO T8. Matches MALLOC=ps_malloc in PIDKiln.ino.
+    fqbn: esp32:esp32:esp32wrover
+    platforms:
+      - platform: esp32:esp32 (3.3.13)
+        platform_index_url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+    libraries:
+      - ESP Async WebServer (3.12.1)
+      - dependency: Async TCP (3.6.1)
+      - PID (1.2.0)
+      - U8g2 (2.36.19)
+      - EmonLib (1.1.0)
+      # Not in the Arduino library index - pinned as git submodules:
+      - dir: libraries/MAX31855   # Saur0o0n fork (adds HSPI support), GPL-3.0
+      - dir: libraries/Syslog     # arcao/Syslog v2.0.1, MIT
+
+default_profile: wrover

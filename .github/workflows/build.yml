@@ -1,0 +1,53 @@
+name: Build firmware
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # Third-party actions are pinned to commit SHAs (tag in the comment).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+          persist-credentials: false
+
+      - uses: arduino/setup-arduino-cli@b3cda96fddef6af6c56b4c5efb5c47e2357935db # v2.1.0
+        with:
+          version: 1.6.0
+
+      # The ESP32 core and the libraries are installed by the profile in sketch.yaml.
+      # Cache them; the key changes whenever a pinned version changes.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.arduino15
+            ~/Arduino
+          key: arduino-${{ runner.os }}-${{ hashFiles('sketch.yaml') }}
+
+      - name: Compile (profile from sketch.yaml)
+        run: >
+          arduino-cli compile
+          --profile wrover
+          --build-property "compiler.cpp.extra_flags=-DTEMPLATE_PLACEHOLDER='~'"
+          --warnings default
+          --output-dir build
+          .
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: PIDKiln-firmware-${{ github.sha }}
+          path: build/*.bin
+          if-no-files-found: error
+          retention-days: 30

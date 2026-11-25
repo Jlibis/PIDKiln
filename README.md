@@ -165,17 +165,32 @@ You could power board with just USB, but 5V output from my board (ESP32-Wrover T
 
 This is short version - for detailed one, please see [Wiki documentation](https://github.com/Saur0o0n/pidkiln/wiki/Hardware-assembly)
 
-- Assembly hardware, as specified above.
-- Clone git into the Arduino user programs directory (on Linux "/home/username/Arduino/").
-- You have to already have installed ESP32 framework (PIDKiln <v1.2 requires ESP32 <2.0.x, PIDKiln v1.2+ requires ESP32 2.0.x and PIDKiln v1.5+ ESP32 3.x) - if don't, do it now (https://github.com/espressif/arduino-esp32/blob/master/docs/arduino-ide/boards_manager.md).
-- Don't forget about ESP32FS plugin (drop it to "/home/username/Arduino/tools")
-- Install required additional libraries (not all can be installed from Arduino IDE Library Manager): [ESPAsyncWebServer](https://github.com/me-no-dev/ESPAsyncWebServer), [AsyncTCP](https://github.com/me-no-dev/AsyncTCP), [PID Library](https://github.com/br3ttb/Arduino-PID-Library/), [u8g2](https://github.com/olikraus/u8g2) and perhaps [emon](https://github.com/openenergymonitor/EmonLib) if you plan to use power meter. Since PIDKiln 1.1 you also need [Syslog](https://github.com/arcao/Syslog) library.
-- Install also (this has changed in PIDKiln v1.1) [my clone of MAX31855](https://github.com/Saur0o0n/MAX31855) - this implements second HW SPI for ESP32.
-- Update (there is no other way to do it) libraries/ESPAsyncWebServer/src/WebResponseImpl.h variable TEMPLATE_PLACEHOLDER to '~'.
-- For production use, disable serial debug in PIDKiln.ino - set it on false (''#define DEBUG false'')
-- Compile and upload.
-- Open data/etc/pidkiln.conf and edit your WiFi credentials (if you want to use) and, if you want, some additional parameters.
-- Upload sketch data (from data directory) to ESP32 SPIFFS with help of ESP32FS plugin (in Arduino IDE go to Menu->Tools->ESP32 Sketch Data Upload).
+- Assemble the hardware, as specified above.
+- Clone with submodules: `git clone --recursive <repo url>` (or `git submodule update --init` in an
+  existing clone). The submodules in `libraries/` are the two libraries that are not in the Arduino
+  library index: [the MAX31855 fork](https://github.com/Saur0o0n/MAX31855) (adds a second hardware SPI
+  for ESP32) and [Syslog](https://github.com/arcao/Syslog).
+- Open `data/etc/pidkiln.conf` and set your WiFi credentials and, if you want, other parameters.
+- For production use, disable serial debug in PIDKiln.ino (`#define DEBUG false`).
+
+**With arduino-cli (recommended, reproducible).** `sketch.yaml` pins the ESP32 core (3.3.x) and every
+library version, and arduino-cli (1.3 or newer) installs them on the first build:
+
+```sh
+arduino-cli compile --profile wrover --build-property "compiler.cpp.extra_flags=-DTEMPLATE_PLACEHOLDER='~'" .
+arduino-cli upload  --profile wrover -p <your serial port> .
+```
+
+The CI build (GitHub Actions) uploads a ready-made `PIDKiln.ino.bin` as an artifact.
+
+**With Arduino IDE 2.x.** Install the ESP32 core 3.x, and the libraries ESP Async WebServer and Async
+TCP (by ESP32Async), PID (Brett Beauregard), U8g2 and, if you use the power meter, EmonLib - the
+versions listed in `sketch.yaml`. Copy the two folders from `libraries/` into your Arduino libraries
+folder. The web templates need `~` as placeholder: either add `-DTEMPLATE_PLACEHOLDER='~'` to your
+build flags, or set `TEMPLATE_PLACEHOLDER` to `'~'` in the ESPAsyncWebServer `WebResponseImpl.h`.
+
+**Upload the data directory** to SPIFFS, for example with the ESP32FS plugin in Arduino IDE 1.x
+(Menu -> Tools -> ESP32 Sketch Data Upload).
 
 ## Documentation
 
