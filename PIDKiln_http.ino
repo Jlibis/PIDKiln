@@ -43,8 +43,8 @@ AsyncWebServer server(80);
 //
 String Preferences_parser(const String& var){
 
-      if(var=="WiFi_SSID") return String(Prefs[PRF_WIFI_SSID].value.str);
- else if(var=="WiFi_Password") return String(Prefs[PRF_WIFI_PASS].value.str);
+      if(var=="WiFi_SSID") return html_escape(String(Prefs[PRF_WIFI_SSID].value.str));
+ else if(var=="WiFi_Password") return html_escape(String(Prefs[PRF_WIFI_PASS].value.str));
  else if(var=="WiFi_Mode0" && Prefs[PRF_WIFI_MODE].value.uint8==0) return "checked";
  else if(var=="WiFi_Mode1" && Prefs[PRF_WIFI_MODE].value.uint8==1) return "checked";
  else if(var=="WiFi_Mode2" && Prefs[PRF_WIFI_MODE].value.uint8==2) return "checked";
@@ -54,16 +54,16 @@ String Preferences_parser(const String& var){
  else if(var=="HTTP_Local_JS0" && Prefs[PRF_HTTP_JS_LOCAL].value.uint8==0) return "checked";
  else if(var=="HTTP_Local_JS1" && Prefs[PRF_HTTP_JS_LOCAL].value.uint8==1) return "checked";
  
- else if(var=="Auth_Username") return String(Prefs[PRF_AUTH_USER].value.str);
- else if(var=="Auth_Password") return String(Prefs[PRF_AUTH_PASS].value.str);
+ else if(var=="Auth_Username") return html_escape(String(Prefs[PRF_AUTH_USER].value.str));
+ else if(var=="Auth_Password") return html_escape(String(Prefs[PRF_AUTH_PASS].value.str));
  
- else if(var=="NTP_Server1") return String(Prefs[PRF_NTPSERVER1].value.str);
- else if(var=="NTP_Server2") return String(Prefs[PRF_NTPSERVER2].value.str);
- else if(var=="NTP_Server3") return String(Prefs[PRF_NTPSERVER3].value.str);
+ else if(var=="NTP_Server1") return html_escape(String(Prefs[PRF_NTPSERVER1].value.str));
+ else if(var=="NTP_Server2") return html_escape(String(Prefs[PRF_NTPSERVER2].value.str));
+ else if(var=="NTP_Server3") return html_escape(String(Prefs[PRF_NTPSERVER3].value.str));
  else if(var=="GMT_Offset_sec") return String(Prefs[PRF_GMT_OFFSET].value.int16);
  else if(var=="Daylight_Offset_sec") return String(Prefs[PRF_DAYLIGHT_OFFSET].value.int16);
- else if(var=="Initial_Date") return String(Prefs[PRF_INIT_DATE].value.str);
- else if(var=="Initial_Time") return String(Prefs[PRF_INIT_TIME].value.str);
+ else if(var=="Initial_Date") return html_escape(String(Prefs[PRF_INIT_DATE].value.str));
+ else if(var=="Initial_Time") return html_escape(String(Prefs[PRF_INIT_TIME].value.str));
  
  else if(var=="MIN_Temperature") return String(Prefs[PRF_MIN_TEMP].value.uint8);
  else if(var=="MAX_Temperature") return String(Prefs[PRF_MAX_TEMP].value.uint16);
@@ -87,7 +87,7 @@ String Preferences_parser(const String& var){
  else if(var=="DBG_Syslog0" && Prefs[PRF_DBG_SYSLOG].value.uint8==0) return "selected";
  else if(var=="DBG_Syslog1" && Prefs[PRF_DBG_SYSLOG].value.uint8==1) return "selected";
  else if(var=="DBG_Syslog_Port") return String(Prefs[PRF_SYSLOG_PORT].value.uint16);
- else if(var=="DBG_Syslog_Srv") return String(Prefs[PRF_SYSLOG_SRV].value.str);
+ else if(var=="DBG_Syslog_Srv") return html_escape(String(Prefs[PRF_SYSLOG_SRV].value.str));
 
  else if(var=="ERRORS" && Errors){
   String out="<div class=error> There where errors: "+String(Errors)+"</div>";
@@ -240,7 +240,7 @@ template_str=String();
     template_str += "<td><a href=\""+tmp+"\" target=\"_blank\">"+String(Programs_DIR[a].filename)+"</a></td>";  
     template_str += "<td>"+String(Programs_DIR[a].filesize)+"</td>";
     if(file=LittleFS.open(tmp.c_str(),"r")){
-      template_str += "<td>"+file.readStringUntil('\n')+"</td>";
+      template_str += "<td>"+html_escape(file.readStringUntil('\n'))+"</td>";
       file.close();
     }else template_str += "<td> Error opening file to read description </td>";
     template_str += "<td><a href=/load.html?prog_name="+String(Programs_DIR[a].filename)+">load</a></td>";
@@ -296,7 +296,7 @@ template_str=String();
     template_str += "<td><a href=\""+tmp+"\" target=\"_blank\">"+String(Logs_DIR[a].filename)+"</a></td>";  
     template_str += "<td>"+String(Logs_DIR[a].filesize)+"</td>";
     if(tmp.lastIndexOf(".log")>0 && (file=LittleFS.open(tmp.c_str(),"r"))){
-      template_str += "<td>"+file.readStringUntil('\n')+"</td>";
+      template_str += "<td>"+html_escape(file.readStringUntil('\n'))+"</td>";
       file.close();
     }else template_str += "<td>  </td>";
     template_str += "</tr>\n";
@@ -385,6 +385,9 @@ static File newFile;
 static boolean abort=false;
 String tmp=String(PRG_Directory);
 
+  // AsyncWebServer calls this before the request handler, so check credentials here as well -
+  // otherwise anyone could write files without a password. The request handler answers 401/403.
+  if(!_isAuthorized(request) || !_sameOrigin(request)) return;
 
   tmp.concat("/");
   tmp.concat(filename.c_str());
@@ -428,8 +431,8 @@ String tmp=String(PRG_Directory);
       return;
     }
 
-    char tmp_filename[MAX_PROGNAME];
-    strcpy(tmp_filename,filename.c_str());
+    char tmp_filename[MAX_PROGNAME+1];  // length was checked above (MAX_FILENAME incl. directory)
+    strlcpy(tmp_filename,filename.c_str(),sizeof(tmp_filename));
     // Abort if filename contains not allowed characters or trys to overwrite index.html
     if(!valid_filename(tmp_filename) || filename.compareTo("index.html")==0){
       DBG dbgLog(LOG_DEBUG,"[HTTP] Uploaded filename containg bad characters! Aborting\n");
@@ -456,8 +459,8 @@ String tmp=String(PRG_Directory);
     DBG dbgLog(LOG_DEBUG,"[HTTP] UploadEnd: %s, %d B\n", newFile.name(), newFile.size());
     newFile.close();
 
-    char fname[22];
-    strcpy(fname,filename.c_str());
+    char fname[MAX_PROGNAME+1];
+    strlcpy(fname,filename.c_str(),sizeof(fname));
     DBG dbgLog(LOG_INFO,"[HTTP] Checking uploaded program structure: '%s'\n",fname); 
     uint8_t err=Load_program(fname);
     
@@ -479,16 +482,16 @@ String tmp=String(PRG_Directory);
 //
 void POST_Handle_Delete(AsyncWebServerRequest *request){
 
-  if(!_webAuth(request)) return;
+  if(!_webAuthWrite(request)) return;
 
   //Check if POST (but not File) parameter exists
   if(request->hasParam("prog_name", true) && request->hasParam("yes", true)){
     const AsyncWebParameter* p = request->getParam("yes", true);
-    if(p->value().compareTo(String("Yes!"))==0){ // yes user want's to delete program
-      const AsyncWebParameter* p = request->getParam("prog_name", true);
-      char path[32];
-      sprintf(path,"%s/%.*s",PRG_Directory,MAX_PROGNAME,p->value().c_str());
-      DBG dbgLog(LOG_DEBUG,"[HTTP] Removing program: %s with fpath:%s\n",p->value().c_str(),path);
+    char prname[MAX_PROGNAME+1];
+    if(p->value().compareTo(String("Yes!"))==0 && get_program_name(request->getParam("prog_name", true)->value(),prname,sizeof(prname))){ // yes user want's to delete program
+      char path[MAX_FILENAME+2];
+      snprintf(path,sizeof(path),"%s/%s",PRG_Directory,prname);
+      DBG dbgLog(LOG_DEBUG,"[HTTP] Removing program: %s\n",path);
       if(LittleFS.exists(path)){
         LittleFS.remove(path);
         Generate_INDEX();
@@ -504,26 +507,29 @@ void POST_Handle_Delete(AsyncWebServerRequest *request){
 void GET_Handle_Delete(AsyncWebServerRequest *request){
 File tmpf;
 String tmps;
+char prname[MAX_PROGNAME+1];
+
+  if(!_webAuth(request)) return;
 
   DBG dbgLog(LOG_DEBUG,"[HTTP]  Request type: %d\n",request->method());
   DBG dbgLog(LOG_DEBUG,"[HTTP]  Request url: %s\n",request->url().c_str());
 
-  if(!request->hasParam("prog_name") || !(tmpf=LittleFS.open("/delete.html", "r")) ){  // if no program to delete - skip
-    DBG dbgLog(LOG_ERR,"[HTTP]  Failed to find GET or open delete.html");
+  // The name is validated (only safe filename characters), so it can't inject HTML into the page
+  if(!request->hasParam("prog_name") || !get_program_name(request->getParam("prog_name")->value(),prname,sizeof(prname))
+     || !(tmpf=LittleFS.open("/delete.html", "r")) ){  // if no (valid) program to delete - skip
+    DBG dbgLog(LOG_ERR,"[HTTP]  Missing/invalid program name or failed to open delete.html");
     request->redirect("/programs");
     return;
   }
- 
-  const AsyncWebParameter* p = request->getParam("prog_name");
-  
+
   AsyncResponseStream *response = request->beginResponseStream("text/html");
   response->addHeader("Server","ESP Async Web Server");
 
-  DBG dbgLog(LOG_DEBUG,"[HTTP] Opened file is %s, program name is:%s\n",tmpf.path(),p->value().c_str());
-  
+  DBG dbgLog(LOG_DEBUG,"[HTTP] Opened file is %s, program name is:%s\n",tmpf.path(),prname);
+
   while(tmpf.available()){
     tmps=tmpf.readStringUntil('\n');
-    tmps.replace("~PROGRAM_NAME~",p->value());
+    tmps.replace("~PROGRAM_NAME~",prname);
     //DBG Serial.printf("-:%s:\n",tmps.c_str());
     response->println(tmps.c_str());
   }
@@ -536,19 +542,26 @@ String tmps;
 // Load program from file to memory
 //
 void GET_Handle_Load(AsyncWebServerRequest *request){
-char prname[MAX_FILENAME];
+char prname[MAX_PROGNAME+1];
 
-  if(!request->hasParam("prog_name")){  // if no program to load - skip
-    DBG dbgLog(LOG_ERR,"[HTTP] Failed to load program - no program name");
+  if(!_webAuth(request)) return;
+
+  if(!request->hasParam("prog_name") || !get_program_name(request->getParam("prog_name")->value(),prname,sizeof(prname))){
+    DBG dbgLog(LOG_ERR,"[HTTP] Failed to load program - missing or invalid program name");
     request->redirect("/programs");
     return;
   }
 
-  const AsyncWebParameter* p = request->getParam("prog_name");
-  strcpy(prname,p->value().c_str());
+  // Replacing the program while it controls the heater would leave the SSR in its last state
+  if(Program_is_active()){
+    DBG dbgLog(LOG_ERR,"[HTTP] Refusing to load program - a program is active\n");
+    request->send(409, "text/html", "<html><body><h1>A program is active</h1> Stop or abort it before loading another one.<br><br><a href=/index.html>Return to main view</a></body></html>");
+    return;
+  }
+
   if(!Load_program(prname)){
-    request->redirect("/index.html");
     Load_program_to_run();
+    request->redirect("/index.html");
     return;
   }else{
     DBG dbgLog(LOG_ERR,"[HTTP] Failed to load program - Load_program() failed");
@@ -563,7 +576,7 @@ char prname[MAX_FILENAME];
 void handlePrefs(AsyncWebServerRequest *request){
 boolean save=false;
 
-  if(!_webAuth(request)) return;
+  if(!_webAuthWrite(request)) return;
 
   int params = request->params();
   for(int i=0;i<params;i++){
@@ -605,7 +618,7 @@ boolean save=false;
 void handleIndexPost(AsyncWebServerRequest *request){
 int params = request->params();
 
-  if(!_webAuth(request)) return;
+  if(!_webAuthWrite(request)) return;
 
   for(int i=0;i<params;i++){
     const AsyncWebParameter* p = request->getParam(i);
@@ -616,7 +629,7 @@ int params = request->params();
         else START_Program();
       }else if(p->name().equalsIgnoreCase("prog_pause") && Program_run_state==PR_RUNNING){
         PAUSE_Program();
-      }else if(p->name().equalsIgnoreCase("prog_end") && (Program_run_state==PR_RUNNING || Program_run_state==PR_PAUSED)){
+      }else if(p->name().equalsIgnoreCase("prog_end") && Program_is_active()){
         END_Program();
       }else if(p->name().equalsIgnoreCase("prog_abort")){
         ABORT_Program(PR_ERR_USER_ABORT);
@@ -694,14 +707,25 @@ void do_screenshot(AsyncWebServerRequest *request){
 }
 
 
-// Funnctin handling firmware upload/update (from https://github.com/lbernstone/asyncUpdate/blob/master/AsyncUpdate.ino)
+// Firmware / data image upload (based on https://github.com/lbernstone/asyncUpdate).
+// AsyncWebServer calls this for every chunk *before* the request handler runs, so it has to check
+// authentication itself. The response is sent by handleDoUpdateDone() once the body is received.
 //
+bool Update_refused=false;  // set when an update is refused because a program is active
+
 void handleDoUpdate(AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
-size_t content_len;
-  
+
+  if(!_isAuthorized(request) || !_sameOrigin(request)) return;  // handleDoUpdateDone answers 401/403
+
   if (!index){
+    // Never flash while a program controls the heater - the restart would leave the kiln unattended
+    Update_refused=Program_is_active();
+    if(Update_refused){
+      DBG dbgLog(LOG_ERR,"[HTTP] Refusing firmware update - a program is active\n");
+      return;
+    }
+    if(Update.isRunning()) Update.abort();  // leftover from an interrupted upload
     DBG dbgLog(LOG_INFO,"[HTTP] Beginning firmware update\n");
-    content_len = request->contentLength();
     // A filesystem image (name contains "littlefs", or "spiffs" as before) goes to the data partition
     int cmd = (filename.indexOf("littlefs") > -1 || filename.indexOf("spiffs") > -1) ? U_SPIFFS : U_FLASH;
     if (!Update.begin(UPDATE_SIZE_UNKNOWN, cmd)) {
@@ -709,35 +733,111 @@ size_t content_len;
     }
   }
 
+  if(!Update.isRunning()) return;
+
   if (Update.write(data, len) != len) {
     Update.printError(Serial);
   }
 
   if (final) {
-    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", "Please wait while the device reboots...");
-    response->addHeader("Refresh", "20; url=/about.html");
-    response->addHeader("Connection", "close");
-    request->send(response);
-    delay(1000);
-    if (!Update.end(true)){
-      Update.printError(Serial);
-    } else {
-      DBG Serial.println("[HTTP] Update complete");
-      DBG Serial.flush();
-      Restart_ESP();
-    }
+    if (!Update.end(true)) Update.printError(Serial);
+    else DBG dbgLog(LOG_INFO,"[HTTP] Update complete\n");
   }
+}
+
+
+// Request handler for the firmware upload - runs after the whole body went through handleDoUpdate()
+//
+void handleDoUpdateDone(AsyncWebServerRequest *request){
+  if(!_webAuthWrite(request)) return;
+  if(Update_refused){
+    Update_refused=false;
+    request->send(409, "text/plain", "A program is active - stop or abort it before flashing.");
+    return;
+  }
+  if(!Update.isFinished() || Update.hasError()){
+    request->send(500, "text/plain", String("Update failed: ")+Update.errorString());
+    return;
+  }
+  AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", "Update done. Please wait while the device reboots...");
+  response->addHeader("Refresh", "20; url=/about.html");
+  response->addHeader("Connection", "close");
+  request->send(response);
+  shouldReboot=true;  // Program_Loop restarts the ESP - never delay() or restart inside a web handler
 }
 
 
 // Basic WEB authentication
 //
+// True if the request carries valid credentials. Sends nothing - safe to call from upload/body
+// callbacks, which AsyncWebServer runs *before* the request handler.
+bool _isAuthorized(AsyncWebServerRequest *request){
+  return request->authenticate(Prefs[PRF_AUTH_USER].value.str,Prefs[PRF_AUTH_PASS].value.str,NULL,false);
+}
+
+// CSRF protection for requests that change state. Browsers attach cached Basic-auth credentials to
+// requests made by *other* sites too, so a browser request must come from this device's own pages.
+// Requests without Origin and Referer (curl, scripts) are allowed: they don't carry a victim's login.
+bool _sameOrigin(AsyncWebServerRequest *request){
+  String host=request->host();
+  if(request->hasHeader("Origin")){
+    String origin=request->getHeader("Origin")->value();
+    return origin=="http://"+host || origin=="https://"+host;
+  }
+  if(request->hasHeader("Referer")){
+    String ref=request->getHeader("Referer")->value();
+    return ref.startsWith("http://"+host+"/") || ref.startsWith("https://"+host+"/");
+  }
+  return true;
+}
+
+// For pages that only read: asks the browser for credentials if missing/wrong.
 bool _webAuth(AsyncWebServerRequest *request){
-    if(!request->authenticate(Prefs[PRF_AUTH_USER].value.str,Prefs[PRF_AUTH_PASS].value.str,NULL,false)) {
+    if(!_isAuthorized(request)) {
       request->requestAuthentication(NULL,false); // force basic auth
       return false;
     }
     return true;
+}
+
+// For requests that change state (POST, uploads, flashing): authentication plus same-origin check.
+bool _webAuthWrite(AsyncWebServerRequest *request){
+  if(!_webAuth(request)) return false;
+  if(!_sameOrigin(request)){
+    DBG dbgLog(LOG_ERR,"[HTTP] Rejected cross-site request to %s\n",request->url().c_str());
+    request->send(403, "text/plain", "Cross-site request rejected");
+    return false;
+  }
+  return true;
+}
+
+
+// Escape text from users or files before it goes into HTML (element content or attribute values)
+//
+String html_escape(const String &in){
+String out;
+  out.reserve(in.length()+16);
+  for(size_t i=0; i<in.length(); i++){
+    char c=in[i];
+    if(c=='&') out+="&amp;";
+    else if(c=='<') out+="&lt;";
+    else if(c=='>') out+="&gt;";
+    else if(c=='"') out+="&quot;";
+    else if(c=='\'') out+="&#39;";
+    else out+=c;
+  }
+  return out;
+}
+
+
+// Copy a program name from a request parameter into out (size out_size). Returns false if it is
+// empty, too long, "index.html", or has characters outside allowed_chars_in_filename (no '/', so
+// no path traversal).
+bool get_program_name(const String &value, char *out, size_t out_size){
+  if(value.length()==0 || value.length()>MAX_PROGNAME || value.length()>=out_size) return false;
+  if(value=="index.html") return false;
+  strlcpy(out,value.c_str(),out_size);
+  return valid_filename(out);
 }
 
 
@@ -804,7 +904,7 @@ void SETUP_WebServer(void) {
 
   // Upload new programs
   server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request){
-    if(!_webAuth(request)) return;
+    if(!_webAuthWrite(request)) return;
     request->send(200);
   }, handleUpload);
 
@@ -826,7 +926,10 @@ void SETUP_WebServer(void) {
 
   server.on("/load.html", HTTP_GET, GET_Handle_Load);
 
-  server.on("/screenshot.html", HTTP_GET, do_screenshot);
+  server.on("/screenshot.html", HTTP_GET, [](AsyncWebServerRequest *request){
+    if(!_webAuth(request)) return;
+    do_screenshot(request);
+  });
 
   server.on("/about.html", HTTP_GET, [](AsyncWebServerRequest *request){
     if(!_webAuth(request)) return;
@@ -839,8 +942,7 @@ void SETUP_WebServer(void) {
     else request->send(200, "text/html", FALLBACK_FLASH_PAGE);
   });
   
-  server.on("/flash_firmware.html", HTTP_POST,
-    [](AsyncWebServerRequest *request) { if(!_webAuth(request)) return; },
+  server.on("/flash_firmware.html", HTTP_POST, handleDoUpdateDone,
     [](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data,
                   size_t len, bool final) {handleDoUpdate(request, filename, index, data, len, final);}
   );

@@ -71,6 +71,16 @@ void load_msg(char msg[MAX_CHARS_PL]){
 }
 
 
+// Tell the user that a program can't be loaded/replaced while one is active
+//
+void LCD_Show_program_active_msg(){
+char msg[MAX_CHARS_PL];
+  strlcpy(msg," Stop program first!",sizeof(msg));
+  load_msg(msg);
+  delay(1500);  // runs in the input task - OK to block briefly
+}
+
+
 // Draws dotted vertical line
 //
 void DrawVline(uint16_t x,uint16_t y,uint16_t h){
@@ -263,7 +273,7 @@ char msg[MAX_CHARS_PL];
   u8g2.sendBuffer();
 
   // If we are running - do the inverse part of graph
-  if(Program_run_state==PR_RUNNING || Program_run_state==PR_PAUSED){
+  if(Program_is_active()){
     int fullt,currt;
     float prop;
     fullt=(int)(Program_run_end-Program_run_start); // how long should program last
@@ -347,7 +357,7 @@ struct tm timeinfo,*tmm;
   y+=chh;
   u8g2.drawFrame(0,y-chh, chw*7, chh+1);
   u8g2.drawFrame(0,y-chh, SCREEN_W, chh+1);
-  if(Program_run_state==PR_RUNNING || Program_run_state==PR_PAUSED){
+  if(Program_is_active()){
     sprintf(msg,"  ETA");
     u8g2.drawStr(x,y,msg);
     tmm=localtime(&Program_run_end);
@@ -604,7 +614,7 @@ char msg[125],rest[125];  // this should be 5 lines with 125 chars..  it should 
       LCD_Display_program_full();
       return;
     }else if(prog_menu==P_LOAD){
-      Load_program_to_run();
+      if(!Load_program_to_run()) LCD_Show_program_active_msg();
       LCD_display_main_view();
       return;
     }
@@ -714,6 +724,11 @@ char msg[100];
       LCD_display_menu();
       return;
     }else if(what==11){  // load program end exit
+      if(Program_is_active()){  // never replace the program that controls the heater
+        LCD_Show_program_active_msg();
+        LCD_display_main_view();
+        return;
+      }
       DBG dbgLog(LOG_INFO,"[LCD] Replacing current program in memory - start");
       // We need to define program here
       Initialize_program_to_run();  // clear current program

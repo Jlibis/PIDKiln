@@ -8,6 +8,18 @@ Unreleased
 - web flash page accepts LittleFS data images (file name containing "littlefs")
 - fixed deleting rejected program uploads (removed the wrong path since ESP32 core 2.0)
 - replaced deprecated ICACHE_RAM_ATTR and a raw ESP32 efuse register read with current APIs
+- security: firmware flashing and program upload checked the password only after the upload was
+  processed - now checked in the upload callbacks; /load.html, /delete.html and /screenshot.html
+  require login; state-changing requests from other web sites are rejected (CSRF)
+- security: program names from requests are validated and bounded (fixes a stack overflow in
+  /load.html); preference values and program descriptions are HTML-escaped (XSS)
+- safety: a program can't be loaded or replaced (web, LCD, quick program) while one is active -
+  this used to stop the PID loop and could leave the heater switched on
+- safety: aborts (safety checks, sensor errors, Abort button) now also work while waiting for the
+  temperature threshold; they were ignored in that state
+- safety: firmware flashing is refused while a program is active; restart after flashing is done by
+  the program loop instead of inside the web handler
+- Start no longer restarts an already running program; a changed PID_POE applies during a run
 
 1.5 (2024.12.18)
 - updated code to compile against ESP3+ API, Arduino 2+ and latest asynce libraries

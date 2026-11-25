@@ -119,8 +119,9 @@ int pos=0;
 void Prefs_updated_hook(){
 
   // We have running program - update PID parameters
-  if(Program_run_state==PR_RUNNING || Program_run_state==PR_PAUSED){
-    KilnPID.SetTunings(Prefs[PRF_PID_KP].value.vfloat,Prefs[PRF_PID_KI].value.vfloat,Prefs[PRF_PID_KD].value.vfloat); // set actual PID parameters
+  if(Program_is_active()){
+    // Pass POn too, so a changed PID_POE also applies during the run (the 3-argument form keeps the old one)
+    KilnPID.SetTunings(Prefs[PRF_PID_KP].value.vfloat,Prefs[PRF_PID_KI].value.vfloat,Prefs[PRF_PID_KD].value.vfloat,Prefs[PRF_PID_POE].value.uint8);
   }
 }
 

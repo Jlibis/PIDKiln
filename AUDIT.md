@@ -6,6 +6,19 @@ Method: I read all firmware sources (~3.9k lines of C++), the web UI, the config
 **Nothing was compiled or run on hardware.** No ESP32 toolchain was available, so every finding comes
 from reading the code. The line numbers refer to that commit.
 
+## Status (updated 2026-11-25)
+
+The audit text below is the original snapshot. Fixes so far (each branch builds on the previous one;
+all compile in CI, none is hardware-tested yet):
+
+| Branch | Fixes |
+|--------|-------|
+| `build/pinned-toolchain-ci` | Reproducible build and CI (section 5 "no build manifest, no CI") |
+| `modernize/littlefs-deprecated-apis` | SPIFFS → LittleFS, `IRAM_ATTR`, efuse API (section 6); rejected uploads now really deleted |
+| `fix/web-auth-and-program-safety` | S1, S2, S3, S4, S5 for POSTs (same-origin check; `GET /load.html` can still be triggered cross-site, but now only loads a program while none is active), S6 (escaping/validation), M6, F0, F7, F8, F9 |
+
+Still open: S7–S9, F1–F6, M1–M5, M7–M12, C1–C4, and the rest of sections 5–6.
+
 ## Verdict
 
 It is a capable hobby project with a good feature set: LCD and web UI, programs, logging, syslog, OTA.
@@ -52,8 +65,9 @@ filesystem, the JS stack and the build tooling are 2019-era.
 | F4 | **Divide by zero for a step with 0 minutes to reach it.** `temp_incr = Δtemp / (togo*60)`. If togo is 0, `set_temp` becomes ±inf, or NaN when Δ=0. With NaN, PID_v1's `outputSum` stays NaN forever (its clamp comparisons are false). The SSR goes off for the rest of the run while the state still says "Running", and the threshold logic is skipped too. The parser accepts `500:0:30`. | `PIDKiln_program.ino:413,418` |
 | F5 | **The safety check runs only every 10 s, and only while a program runs.** `MIN_Temperature` is a `uint8` (0–255, no negatives). In a cold workshop (<10 °C) every program aborts within 10 s. | `PIDKiln_program.ino:474-486`, `533` |
 | F6 | **Thermocouple faults report the wrong code.** Every fault aborts with `*_INT_ERR`. `PR_ERR_MAX31A/B_KPROBE` are never used. Between errors `kiln_temp` stays at its last value, and the grace counter only goes down by 1 per good read. | `PIDKiln_addons.ino:104-110` |
-| F7 | **`Prefs_updated_hook` drops the P-on-E/P-on-M mode.** It calls `SetTunings(kp,ki,kd)` without `POn`, which resets the mode to the library default. It also isn't applied in the `PR_THRESHOLD` state. | `PIDKiln_prefs.ino:123` |
+| F7 | **`Prefs_updated_hook` ignores a changed P-on-E/P-on-M setting.** *(Corrected: the first version of this audit said the mode gets reset. PID_v1's 3-argument `SetTunings()` keeps the current mode, so a changed `PID_POE` just doesn't apply until the next start.)* New tunings also aren't applied in the `PR_THRESHOLD` state. | `PIDKiln_prefs.ino:123` |
 | F8 | **`START_Program()` while running restarts the program** from step 0 at the current temperature. It only rejects `NONE`/`PAUSED`. | `PIDKiln_program.ino:443` |
+| F9 | *(Found later.)* **Aborts are ignored while waiting for the temperature threshold.** `ABORT_Program()` only acts in RUNNING/PAUSED, so in `PR_THRESHOLD` the safety check's over-temperature and housing aborts, thermocouple-failure aborts and the user's Abort button all do nothing, while the PID keeps driving the heater. The web "End" button has the same gap. Only reachable when `PID_Temp_Threshold` is enabled (it's off by default). | `PIDKiln_program.ino:314`, `PIDKiln_http.ino:619` |
 
 ## 3. High: memory safety and correctness
 

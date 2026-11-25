@@ -221,10 +221,23 @@ void Initialize_program_to_run(){
 }
 
 
-// Copy selected/loaded program to RUN program memory
+// True while a program controls the heater: running, paused, or waiting for the temperature
+// threshold. Use this instead of comparing states by hand - missing PR_THRESHOLD is an easy bug.
 //
-void Load_program_to_run(){
-  
+boolean Program_is_active(){
+  return Program_run_state==PR_RUNNING || Program_run_state==PR_PAUSED || Program_run_state==PR_THRESHOLD;
+}
+
+
+// Copy selected/loaded program to RUN program memory. Refused (returns false) while a program is
+// active: replacing it would stop the PID loop and leave the SSR in its last state.
+//
+boolean Load_program_to_run(){
+
+  if(Program_is_active()){
+    DBG dbgLog(LOG_ERR,"[PRG] Refusing to replace the program - a program is active\n");
+    return false;
+  }
   Initialize_program_to_run();
   Program_run=(PROGRAM *)MALLOC(sizeof(PROGRAM)*Program_size);
   for(uint8_t a=0;a<Program_size;a++) Program_run[a]=Program[a];
@@ -235,6 +248,7 @@ void Load_program_to_run(){
   strcpy(Program_run_name,Program_name.c_str());
   Program_run_size=Program_size;
   Program_run_state=PR_READY;
+  return true;
 }
 
 
@@ -307,11 +321,12 @@ void END_Program(){
 }
 
 
-// Abort program if something goes wrong - this has no real meaning now - perhaps later...
+// Abort program if something goes wrong (safety check, sensor error) or the user aborts.
+// Must work in every active state - including PR_THRESHOLD, which it used to ignore.
 //
 void ABORT_Program(uint8_t error){
 
-  if(Program_run_state==PR_RUNNING || Program_run_state==PR_PAUSED){
+  if(Program_is_active()){
     Program_error=error;
     DBG dbgLog(LOG_INFO,"[PRG] Aborting program with error: %d\n",Program_error);
     END_Program();
@@ -440,7 +455,9 @@ static boolean is_it_dwell=false;
 //
 void START_Program(){
 
-  if(Program_run_state==PR_NONE || Program_run_state==PR_PAUSED) return; // check if program is ready (we can start also from ended,failed etc,) and not paused
+  // Start only a loaded program that isn't active (ready, ended, aborted). Starting an active one
+  // used to restart it from step 0; a paused program is resumed with RESUME_Program() instead.
+  if(Program_run_state==PR_NONE || Program_is_active()) return;
   
   DBG dbgLog(LOG_INFO,"[PRG] Starting new program!");
   Program_run_state=PR_RUNNING;
@@ -503,6 +520,9 @@ uint32_t now;
       // Update temperature readout
       Update_TemperatureA();
 
+      // Restart requested by a finished firmware update (web handlers must not block or restart)
+      if(shouldReboot && !Program_is_active()) Restart_ESP();
+
       // Check if there is Alarm ON - if so, lower time and call STOP
       if(ALARM_countdown>0){
         if(ALARM_countdown<=1) STOP_Alarm();
@@ -526,7 +546,7 @@ uint32_t now;
       // Do Main view screen refreshing if there is a program and if it's running
       if(LCD_State==SCR_MAIN_VIEW && Program_run_size && LCD_Main==MAIN_VIEW1) LCD_display_mainv1();
 
-      if(Program_run_state==PR_RUNNING || Program_run_state==PR_PAUSED || Program_run_state==PR_THRESHOLD){
+      if(Program_is_active()){
         // Do all the program recalc
         Program_calculate_steps();
 
@@ -541,7 +561,7 @@ uint32_t now;
     }
 
     // Do the PID stuff
-    if(Program_run_state==PR_RUNNING || Program_run_state==PR_PAUSED || Program_run_state==PR_THRESHOLD){
+    if(Program_is_active()){
       KilnPID.Compute();
 
       if (now - windowStartTime > Prefs[PRF_PID_WINDOW].value.uint16){ //time to shift the Relay Window
