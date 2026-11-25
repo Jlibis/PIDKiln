@@ -146,18 +146,17 @@ File dir,file;
   Logs_DIR=(DIRECTORY*)MALLOC(sizeof(DIRECTORY)*count);
   Logs_DIR_size=0;
   dir.rewindDirectory();
-  while((file=dir.openNextFile()) && Logs_DIR_size<=count){    // now we do acctual loading into memory
-    char tmp[32];
-    uint8_t len2;
+  while((file=dir.openNextFile()) && Logs_DIR_size<count){    // now we do acctual loading into memory
+    const char *fname=file.name();
 
     vTaskDelay(20);
-    strcpy(tmp,file.name());
-    len2=strlen(tmp);
-    if(len2>31 || len2<2) return 2; // file name with dir too long or just /
-    
-    if(!strcmp(tmp,"index.html")) continue;   // skip index file
-    
-    strcpy(Logs_DIR[Logs_DIR_size].filename,tmp);
+    if(file.isDirectory() || !strcmp(fname,"index.html")) continue;   // skip subdirectories and the index file
+    if(strlen(fname)>MAX_PROGNAME){   // not a name PIDKiln creates
+      DBG dbgLog(LOG_ERR,"[LOG] Skipping log with a name longer than %d chars: %s\n",MAX_PROGNAME,fname);
+      continue;
+    }
+
+    strlcpy(Logs_DIR[Logs_DIR_size].filename,fname,sizeof(Logs_DIR[Logs_DIR_size].filename));
     Logs_DIR[Logs_DIR_size].filesize=file.size();
     Logs_DIR[Logs_DIR_size].sel=0;
     
@@ -198,23 +197,25 @@ void dbgLog(uint16_t pri, const char *fmt, ...) {
   if(!Prefs[PRF_DBG_SERIAL].value.uint8 && !Prefs[PRF_DBG_SYSLOG].value.uint8) return; // don't waste time and resources if logging off
   
   char *message;
-  va_list args;
+  va_list args, args2;
   size_t initialLen;
-  size_t len;
-  bool result;
+  int len;
 
   initialLen = strlen(fmt);
 
   message = new char[initialLen + 1];
 
   va_start(args, fmt);
+  va_copy(args2, args);   // vsnprintf consumes the list - the second pass needs its own copy
   len = vsnprintf(message, initialLen + 1, fmt, args);
-  if (len > initialLen) {
+  if (len < 0) message[0] = '\0';   // encoding error - log an empty line rather than garbage
+  else if ((size_t)len > initialLen) {
     delete[] message;
     message = new char[len + 1];
 
-    vsnprintf(message, len + 1, fmt, args);
+    vsnprintf(message, len + 1, fmt, args2);
   }
+  va_end(args2);
   va_end(args);
     
   if(Prefs[PRF_DBG_SERIAL].value.uint8) Serial.print(message);

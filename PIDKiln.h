@@ -146,7 +146,9 @@ PROGRAM_RUN_STATE Program_run_state=PR_NONE; // running program state
 const char *Prog_Run_Names[] = {"unknown","Ready","Running","Paused","Aborted","Ended","Waiting"};
 
 /* 
-**  Program errors:
+**  Program errors. Program_error and ABORT_Program() use these values. Program loading
+**  (Load_program, add_program_line) returns value+1, because 0 means success there.
+**  Only append new codes - the numbers are shown to the user.
 */
 typedef enum {
   PR_ERR_FILE_LOAD,       // failed to load file
@@ -162,6 +164,9 @@ typedef enum {
   PR_ERR_MAX31B_INT_ERR,  // failed to read MAX31855 internal temperature on case
   PR_ERR_MAX31B_KPROBE,   // failed to read K-probe temperature on case
   PR_ERR_USER_ABORT,      // user aborted
+  PR_ERR_BAD_FORMAT,      // step is not temp:minutes:minutes, has an empty field or a value above 65535, or the program has no steps
+  PR_ERR_TOO_MANY_STEPS,  // program has more than MAX_PRG_LENGTH steps
+  PR_ERR_BAD_VALUE,       // temperature, set point or PID output became NaN or infinite while running
   PR_ERR_end
 } PROGRAM_ERROR_STATE;
 

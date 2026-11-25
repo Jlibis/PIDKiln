@@ -16,8 +16,10 @@ all compile in CI, none is hardware-tested yet):
 | `build/pinned-toolchain-ci` | Reproducible build and CI (section 5 "no build manifest, no CI") |
 | `modernize/littlefs-deprecated-apis` | SPIFFS → LittleFS, `IRAM_ATTR`, efuse API (section 6); rejected uploads now really deleted |
 | `fix/web-auth-and-program-safety` | S1, S2, S3, S4, S5 for POSTs (same-origin check; `GET /load.html` can still be triggered cross-site, but now only loads a program while none is active), S6 (escaping/validation), M6, F0, F7, F8, F9 |
+| `fix/program-parser-and-runtime-guards` | F4 (0-minute step jumps the set point; NaN/inf aborts), M1, M2, M3, M4, M5, and the empty-program part of M12 |
 
-Still open: S7–S9, F1–F6, M1–M5, M7–M12, C1–C4, and the rest of sections 5–6.
+Still open: S7–S9, F1–F3, F5, F6, M7–M12, C1–C4, and the rest of sections 5–6. Also noticed:
+`DIRECTORY.filesize` is `uint16_t`, so log files over 64 KiB show a wrong size.
 
 ## Verdict
 

@@ -29,33 +29,28 @@ void IRAM_ATTR onTimer(){
 }
 
 
-// Load program from disk to memory - validate it
+// Validate one program step "temp:minutes_to_reach:minutes_dwell" and append it to Program[].
+// Returns 0 on success, otherwise a PROGRAM_ERROR_STATE value + 1.
 //
-byte add_program_line(String& linia){
-uint16_t prg[3];
-uint8_t a=0,pos=2;
-int multi=1;
+uint8_t add_program_line(String& linia){
+uint32_t prg[3]={0,0,0};
+uint8_t field=0;
+boolean digits=false;
 
-  // Looking for line dddd:dddd:dddd (temperature:time in minutes:time in minutes) - assume max 1350:9999:9999
-  char p_line[15];
-  strcpy(p_line,linia.c_str());
-  DBG dbgLog(LOG_DEBUG,"[PRG] Sanitizing line: '%s'\n",p_line);
-  a=linia.length(); // going back to front
-  prg[2]=0;prg[1]=prg[0]=0;
-  while(a--){
-    if(p_line[a]=='\0') continue;
-    //DBG Serial.printf(" %d(%d)\n",(byte)p_line[a],a);
-    if(p_line[a]<48 || p_line[a]>58) return 3;  // if this are not numbers or : - exit  
-    if(p_line[a]==58){ // separator :
-      multi=1;
-      pos--;
-    }else{
-      //DBG Serial.printf("pos: %d, multi: %d, prg[%d] is %d, current value:%d\n",pos,multi,pos,prg[pos],p_line[a]-48);
-      prg[pos]+=multi*(p_line[a]-48);
-      multi*=10;
-    }
+  DBG dbgLog(LOG_DEBUG,"[PRG] Sanitizing line: '%s'\n",linia.c_str());
+  for(const char *c=linia.c_str(); *c; c++){
+    if(*c==':'){
+      if(!digits || ++field>2) return PR_ERR_BAD_FORMAT+1;  // empty field or more than three fields
+      digits=false;
+    }else if(*c>='0' && *c<='9'){
+      prg[field]=prg[field]*10+(*c-'0');
+      if(prg[field]>UINT16_MAX) return PR_ERR_BAD_FORMAT+1; // would wrap in the uint16_t step fields
+      digits=true;
+    }else return PR_ERR_BAD_CHAR+1;
   }
-  if(prg[0]>Prefs[PRF_MAX_TEMP].value.uint16) return 4;   // check if we do not exceed max temperature
+  if(field!=2 || !digits) return PR_ERR_BAD_FORMAT+1;      // fewer than three fields, or the last one is empty
+  if(prg[0]>Prefs[PRF_MAX_TEMP].value.uint16) return PR_ERR_TOO_HOT+1;
+  if(Program_size>=MAX_PRG_LENGTH) return PR_ERR_TOO_MANY_STEPS+1;
   Program[Program_size].temp=prg[0];
   Program[Program_size].togo=prg[1];
   Program[Program_size].dwell=prg[2];
@@ -71,17 +66,17 @@ uint8_t Load_program(char *file){
 String line;
 char file_path[32];
 uint8_t err=0;
-uint16_t pos=0;
+int pos=0;
 int sel;
 File prg;
 
   if(file){  // if function got an argument - this can happen if you want to validate new program uploaded by http
-    sprintf(file_path,"%s/%s",PRG_Directory,file);
+    snprintf(file_path,sizeof(file_path),"%s/%s",PRG_Directory,file);
     DBG dbgLog(LOG_DEBUG,"[PRG] Got pointer to load:'%s'\n",file);
     Program_name=String(file);
   }else{
     if((sel=Find_selected_program())<0) return Cleanup_program(1);
-    sprintf(file_path,"%s/%s",PRG_Directory,Programs_DIR[sel].filename);
+    snprintf(file_path,sizeof(file_path),"%s/%s",PRG_Directory,Programs_DIR[sel].filename);
     Program_name=String(Programs_DIR[sel].filename);
   }
   DBG dbgLog(LOG_INFO,"[PRG] Load program name: '%s'\n",file_path);
@@ -104,7 +99,7 @@ File prg;
         }
       }else{
         // Sanitize every line - if it's have a comment - strip ip, then check if this are only numbers and ":" - otherwise fail
-        if(pos=line.indexOf("#")){
+        if((pos=line.indexOf("#"))>0){
           line=line.substring(0,pos);
           line.trim(); // trim again after removing comment
         }
@@ -115,6 +110,7 @@ File prg;
         DBG dbgLog(LOG_DEBUG,"[PRG] San line: '%s'\n",line.c_str());
       }
     }
+    if(!Program_size) return Cleanup_program(PR_ERR_BAD_FORMAT+1);  // comments only - nothing to run
     DBG dbgLog(LOG_DEBUG,"[PRG] Found description: %s\n",Program_desc.c_str());
     if(!Program_desc.length()) Program_desc="No description";   // if after reading file program still has no description - add it
     
@@ -141,20 +137,15 @@ File dir,file;
   Programs_DIR=(DIRECTORY*)MALLOC(sizeof(DIRECTORY)*count);
   Programs_DIR_size=0;
   dir.rewindDirectory();
-  while((file=dir.openNextFile()) && Programs_DIR_size<=count){    // now we do actual loading into memory
-    char tmp[32];
-    uint8_t len2;
-    
-    strcpy(tmp,file.name());
-    len2=strlen(tmp);
-    if(len2>31 || len2<2) return 2; // file name with dir too long or just /
-    DBG dbgLog(LOG_DEBUG,"[PRG] Processing filename: %s\n",tmp);
-/* Outdated with ESP32 IC 2.0+
-    fname=strchr(tmp+1,'/');        // seek for the NEXT directory separator...
-    fname++;                        //  ..and skip it
-*/
-    if(!strcmp(tmp,"index.html")) continue;   // skip index file
-    strcpy(Programs_DIR[Programs_DIR_size].filename,tmp);
+  while((file=dir.openNextFile()) && Programs_DIR_size<count){    // now we do actual loading into memory
+    const char *fname=file.name();
+    DBG dbgLog(LOG_DEBUG,"[PRG] Processing filename: %s\n",fname);
+    if(file.isDirectory() || !strcmp(fname,"index.html")) continue;   // skip subdirectories and the index file
+    if(strlen(fname)>MAX_PROGNAME){   // could only get here by a data image upload - the web UI rejects such names
+      DBG dbgLog(LOG_ERR,"[PRG] Skipping program with a name longer than %d chars: %s\n",MAX_PROGNAME,fname);
+      continue;
+    }
+    strlcpy(Programs_DIR[Programs_DIR_size].filename,fname,sizeof(Programs_DIR[Programs_DIR_size].filename));
     Programs_DIR[Programs_DIR_size].filesize=file.size();
     Programs_DIR[Programs_DIR_size].sel=0;
     
@@ -203,7 +194,6 @@ void Update_program_step(uint8_t sstep, uint16_t stemp, uint16_t stime, uint16_t
 // Initizalize program - clear memory
 //
 void Initialize_program_to_run(){
-  if(!Program_run_size) return;
   if(Program_run!=NULL){
     free(Program_run);
     Program_run=NULL;
@@ -270,6 +260,7 @@ int Find_selected_program(){
 void rotate_selected_program(int dir){
 int a = Find_selected_program();
 
+  if(a<0) return;   // no programs
   DBG dbgLog(LOG_INFO,"[PRG] Rotating programs. For a:%d, dir: %d, selected?:%d, dir_size:%d\n",a,dir,Programs_DIR[a].sel,Programs_DIR_size);
   if(dir<0 && a>0){   // if we are DOWN down and we can a>0 - do it, if we can't - do nothing
     Programs_DIR[a].sel=0;  // delete old selection
@@ -297,8 +288,10 @@ byte Cleanup_program(byte err){
 //
 boolean Erase_program_file(){
 char file[32];
+int sel=Find_selected_program();
 
-  sprintf(file,"%s/%s",PRG_Directory,Programs_DIR[Find_selected_program()].filename);
+  if(sel<0) return false;
+  snprintf(file,sizeof(file),"%s/%s",PRG_Directory,Programs_DIR[sel].filename);
   DBG dbgLog(LOG_INFO,"[PRG] !!! Erasing file from disk: %s",file);
   return LittleFS.remove(file);
 }
@@ -424,7 +417,10 @@ static boolean is_it_dwell=false;
         next_step_end=step_start+Program_run[Program_run_step].togo*60;
         DBG dbgLog(LOG_DEBUG,"[PRG] Next step:%d Start step:%d Togo:%d Run_step:%d/%d Set_temp:%.3f\n",next_step_end,step_start,Program_run[Program_run_step].togo,Program_run_step,Program_run_size,set_temp);
         
-        if(Program_run_step>0){ // is this a next step?
+        if(!Program_run[Program_run_step].togo){  // 0 minutes to reach: jump the set point to the target
+          temp_incr=0;                             //  (dividing by togo would give inf, or NaN that sticks in the PID)
+          set_temp=Program_run[Program_run_step].temp;
+        }else if(Program_run_step>0){ // is this a next step?
           temp_incr=(float)(Program_run[Program_run_step].temp-Program_run[Program_run_step-1].temp)/(Program_run[Program_run_step].togo*60);
           DBG dbgLog(LOG_DEBUG,"[PRG] temp_inc:%f Step_temp:%d Step-1_temp:%d\n",temp_incr,Program_run[Program_run_step].temp,Program_run[Program_run_step-1].temp);
         }else{      // or this is teh first one?
@@ -558,6 +554,12 @@ uint32_t now;
           DBG dbgLog(LOG_INFO,"[PRG] Pid_out RAW:%.2f Pid_out:%.2f Now-window:%d WindowSize:%d Prg_state:%d\n",pid_out,pid_out*PID_WINDOW_DIVIDER,(now - windowStartTime), Prefs[PRF_PID_WINDOW].value.uint16, (byte)Program_run_state);
         }
        }
+    }
+
+    // Fail safe on NaN/inf: PID_v1 never recovers from a NaN, and comparisons with it are false
+    if(Program_is_active() && !(isfinite(kiln_temp) && isfinite(set_temp) && isfinite(pid_out))){
+      DBG dbgLog(LOG_ERR,"[PRG] Invalid value - kiln:%f set:%f pid_out:%f. Aborting\n",kiln_temp,set_temp,pid_out);
+      ABORT_Program(PR_ERR_BAD_VALUE);
     }
 
     // Do the PID stuff

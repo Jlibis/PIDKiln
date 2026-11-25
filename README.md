@@ -3,7 +3,7 @@ PIDKiln is PID temperature controller, for any task involving high temperatures 
 
 ## Key features:
 - Interface accessible both from LCD screen and WWW Webpage
-- Unlimited (limited only by storage) temperature programs number, program file size limited to 10KiB (but this is artificial limit - can be extended)
+- Unlimited (limited only by storage) temperature programs number, up to 40 steps per program, program file size limited to 10KiB (but this is artificial limit - can be extended)
 - Internal ESP flash storage (LittleFS) for programs, data, logs, configuration
 - Local preferences on disk, editable with Web interface
 - Online monitoring, program management, editing, graphs and kiln control

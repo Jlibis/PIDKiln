@@ -20,6 +20,18 @@ Unreleased
 - safety: firmware flashing is refused while a program is active; restart after flashing is done by
   the program loop instead of inside the web handler
 - Start no longer restarts an already running program; a changed PID_POE applies during a run
+- safety: a step with 0 minutes to reach its temperature jumps the set point to that temperature;
+  it used to divide by zero, and with an unchanged temperature the PID stopped heating for the rest
+  of the run while the program still showed "Running"
+- safety: the program aborts (Program_error 15) if the temperature, set point or PID output becomes
+  NaN or infinite
+- program files are checked strictly: exactly three numbers per step (load error 14 otherwise, also
+  for values above 65535 and for files without steps), at most 40 steps (load error 15 - fixes a
+  memory overrun); program lines of 15 characters no longer overflow the parser buffer
+- fixed buffer overruns from long program descriptions on the LCD and from long file names in the
+  programs/logs directories (such files are now skipped); fixed reading out of bounds when the
+  program list is empty (the LCD now says "No programs found")
+- fixed undefined behaviour in debug logging of messages longer than their format string
 
 1.5 (2024.12.18)
 - updated code to compile against ESP3+ API, Arduino 2+ and latest asynce libraries

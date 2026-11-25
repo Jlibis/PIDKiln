@@ -467,8 +467,13 @@ char msg[MAX_CHARS_PL];
   max_lines=floor((SCREEN_H-y*2)/chh);
   u8g2.setFontPosBottom();
 
-  if((sel=Find_selected_program())<0) return;
-  
+  if((sel=Find_selected_program())<0){   // no programs - say so instead of leaving the old screen
+    u8g2.drawStr(x,y+=chh,"No programs found");
+    u8g2.drawFrame(0,0,SCREEN_W,SCREEN_H);
+    u8g2.sendBuffer();
+    return;
+  }
+
   if(sel>=floor(max_lines/2)){
     start_pos=sel-floor(max_lines/2);
     max_lines+=start_pos;
@@ -600,9 +605,13 @@ void LCD_Display_program_summary(int dir,byte load_prg){
 static int prog_menu=0;
 char file_path[32];
 uint8_t x=2,y=1,chh,err=0;
-uint16_t sel;
+int sel;
 char msg[125],rest[125];  // this should be 5 lines with 125 chars..  it should be malloc but ehh
 
+  if((sel=Find_selected_program())<0){  // empty program list - nothing to show
+    LCD_display_programs();
+    return;
+  }
   LCD_State=SCR_PROGRAM_SHOW;
 // If the button was pressed - redirect to other screen
   if(load_prg==2){
@@ -624,10 +633,9 @@ char msg[125],rest[125];  // this should be 5 lines with 125 chars..  it should 
   u8g2.setFontPosBottom();
   chh=u8g2.getMaxCharHeight();
   
-  sel=Find_selected_program();    // get selected program
   DBG dbgLog(LOG_DEBUG,"[LCD] Show single program (dir %d, load_prg %d): %s\n",dir,load_prg,Programs_DIR[sel].filename);
-  
-  sprintf(file_path,"%s/%s",PRG_Directory,Programs_DIR[sel].filename);
+
+  snprintf(file_path,sizeof(file_path),"%s/%s",PRG_Directory,Programs_DIR[sel].filename);
   DBG dbgLog(LOG_DEBUG,"[LCD]\tprogram path: %s\n",file_path);
   if(LittleFS.exists(file_path)){
     u8g2.clearBuffer();
@@ -654,7 +662,7 @@ char msg[125],rest[125];  // this should be 5 lines with 125 chars..  it should 
         return;
       }else prog_menu=0;
 
-    strcpy(msg,Program_desc.c_str());   // Show program description - 3 lines max
+    strlcpy(msg,Program_desc.c_str(),sizeof(msg));   // Show program description - 3 lines max (the description can be up to the file size)
     err=0; // reusage
     while(return_LCD_string(msg,rest,-4) && (err++<3)){
       u8g2.drawStr(x,y+=chh,msg);

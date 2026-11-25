@@ -14,7 +14,7 @@ commits so they can still be compared with or sent upstream.
 | `PIDKiln.ino` | Entry point: `setup()`, config switches (`DEBUG`, `MALLOC`), shared helpers |
 | `PIDKiln.h` | Pin map, global state, enums, preference table. Included once, by `PIDKiln.ino` |
 | `PIDKiln_<module>.ino` | One subsystem per file: `program` (PID + program runner), `addons` (relays, thermocouples, power meter, alarm), `http`, `LCD`, `input`, `net`, `prefs`, `logs` |
-| `data/` | SPIFFS image: web UI, `etc/pidkiln.conf` (default config), sample programs |
+| `data/` | LittleFS image: web UI, `etc/pidkiln.conf` (default config), sample programs |
 | `OTA_Install/` | Separate installer sketch, plus prebuilt binaries (these can lag behind the source) |
 | `Documentation/` | Wiring diagrams, component photos, PID tuning results |
 
@@ -38,9 +38,10 @@ remove a symbol.
   library), and EmonLib only if `ENERGY_MON_PIN` is defined.
 - ESPAsyncWebServer must use `~` as `TEMPLATE_PLACEHOLDER`, because the HTML/JS templates in `data/`
   use `~VAR~`. Set it with a build flag (`-DTEMPLATE_PLACEHOLDER='~'`), or edit the library header as
-  the README says. The `#define` in `PIDKiln.ino` has no effect.
-- There are no automated tests and no CI. If you cannot compile in the current environment, **say so
-  plainly**. Never say a change "works" or "compiles" unless you ran it.
+  the README says.
+- There are no automated tests; CI only proves the firmware compiles. If you cannot compile in the
+  current environment, **say so plainly** (or push and check CI). Never say a change "works" or
+  "compiles" unless you ran it.
 - Hardware behaviour (relays, thermocouples, LCD, encoder) can only be checked on a real device. When
   a change needs that, end with a short manual test checklist for the user.
 
@@ -110,9 +111,10 @@ default in `data/etc/pidkiln.conf`. Read numeric values through the union member
 declared type.
 
 **Program file format** (`data/programs/*.txt`): the first `#` line is the description, then one
-`temp:minutes_to_reach:minutes_dwell` step per line, and `#` starts a comment. The parser is
-`Load_program()`/`add_program_line()` in `PIDKiln_program.ino`. The same checks apply to web upload
-and LCD load.
+`temp:minutes_to_reach:minutes_dwell` step per line (exactly three numbers, at most `MAX_PRG_LENGTH`
+steps), and `#` starts a comment. `minutes_to_reach` 0 jumps the set point straight to `temp`. The
+parser is `Load_program()`/`add_program_line()` in `PIDKiln_program.ino`. The same checks apply to
+web upload and LCD load.
 
 **Releasing**: bump `PVer`/`PDate` in `PIDKiln.h`, add a `Changelog.txt` entry, and mention it if the
 `OTA_Install/` binaries are now stale.
