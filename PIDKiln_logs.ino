@@ -9,6 +9,7 @@ double EnW_last=0;    // last energy consumption for csv report
 // Starts a new log file
 //
 void Init_log_file(){
+Recursive_lock fs_lock(FS_mutex);
 char str[33],csv_name[33];
 struct tm timeinfo, *tmm;
 
@@ -62,6 +63,7 @@ struct tm timeinfo, *tmm;
 // Add single log line with current date and temperature
 //
 void Add_log_line(){
+Recursive_lock fs_lock(FS_mutex);
 String tmp;
 char str[33];
 struct tm timeinfo,*tmm;
@@ -88,6 +90,7 @@ struct tm timeinfo,*tmm;
 // Closes cleanly log file
 //
 void Close_log_file(){
+Recursive_lock fs_lock(FS_mutex);
 struct tm timeinfo, *tmm;
 char str[33];
 
@@ -116,6 +119,7 @@ char str[33];
 // Function leans logs on SPIFFs depending on preferences value "LOG_Files_Limit"
 //
 void Clean_LOGS(){
+Recursive_lock fs_lock(FS_mutex);
 char fname[MAX_FILENAME];
 
   if(Logs_DIR_size<=Prefs[PRF_LOG_LIMIT].value.uint16) return;
@@ -131,6 +135,7 @@ char fname[MAX_FILENAME];
 // Load logs directory into memory - to sort it etc for easier processing PSMmem is plenty
 //
 uint8_t Load_LOGS_Dir(){
+Recursive_lock fs_lock(FS_mutex);
 uint16_t count=0;
 File dir,file;
 
@@ -227,16 +232,19 @@ void dbgLog(uint16_t pri, const char *fmt, ...) {
 
 
 void initSysLog(){
+static char syslog_server[64];   // Syslog keeps the pointer - the pref string is freed when it changes
+Recursive_lock state_lock(State_mutex);
 
   if(Prefs[PRF_DBG_SYSLOG].value.uint8){
     DBG dbgLog(LOG_DEBUG,"[LOG] Trying to enable Syslog\n");
     // check wheter we have all syslog params defined, if not - nullyfi prefs
-    if(!strlen(Prefs[PRF_SYSLOG_SRV].value.str) || !Prefs[PRF_SYSLOG_PORT].value.uint16){
+    if(!Prefs[PRF_SYSLOG_SRV].value.str || !strlen(Prefs[PRF_SYSLOG_SRV].value.str) || !Prefs[PRF_SYSLOG_PORT].value.uint16){
       Prefs[PRF_DBG_SYSLOG].value.uint8=0;
       DBG dbgLog(LOG_ERR,"[LOG] Syslog enabled but not configured - disabling syslog\n");
       return;
     }
-    syslog.server(Prefs[PRF_SYSLOG_SRV].value.str, Prefs[PRF_SYSLOG_PORT].value.uint16);
+    strlcpy(syslog_server,Prefs[PRF_SYSLOG_SRV].value.str,sizeof(syslog_server));
+    syslog.server(syslog_server, Prefs[PRF_SYSLOG_PORT].value.uint16);
     syslog.deviceHostname("PIDKiln-ESP32");
     syslog.appName("PIDKiln");
     syslog.defaultPriority(LOG_KERN);

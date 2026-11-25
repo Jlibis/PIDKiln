@@ -50,16 +50,21 @@ remove a symbol.
 FreeRTOS tasks, created in `setup()`. `loop()` deletes itself.
 
 - `Program_Loop` (core 0, prio 1): a 1 s hardware-timer tick drives temperature reads, the safety
-  check, program stepping and logging. The PID compute and SSR time-proportioning run every 10 ms.
-- `Input_Loop` (core 0, prio 1): rotary encoder and button, which drive all LCD screens.
+  checks, program stepping and logging. The PID compute and SSR time-proportioning run every 10 ms.
+  It is subscribed to the task watchdog (15 s): if it hangs, the ESP32 restarts with relays off.
+- `Input_Loop` (core 0, prio 1): rotary encoder and button. **The only task that draws on the LCD**;
+  `Program_Loop` asks for main-view redraws through `LCD_refresh_v1/v2`.
 - AsyncTCP task: every HTTP handler runs here.
-- `Power_Loop` (core 1): only when the power meter is enabled.
+- `Power_Loop` (core 1): only when the power meter is enabled. The only reader of the energy meter.
 
-State is shared through globals (`kiln_temp`, `set_temp`, `Program_run*`, `Prefs[]`, `u8g2`, ...).
-**These have no locking today.** Don't make this worse:
-- Handlers that run on another task (HTTP, input) should only ask for a change, through a flag, a
-  queue or a small mutex-guarded setter. They should not free, realloc or rebuild data that
-  `Program_Loop` reads.
+State is shared through globals (`kiln_temp`, `set_temp`, `Program_run*`, `Prefs[]`, ...), guarded
+by two recursive mutexes - see "Locking between tasks" in `PIDKiln.h`:
+- `State_mutex`: the running program and its state changes, PID/relay switching, `Prefs[]`.
+  `FS_mutex`: the program edit buffer, directory lists, index pages, log files.
+- Take them with a scope guard (`Recursive_lock state_lock(State_mutex);`), **State before FS**, and
+  never take `State_mutex` while holding `FS_mutex`.
+- Hold `State_mutex` briefly and never across `delay()`: `Program_Loop` needs it every 10 ms to switch
+  the SSR. Check and change state under one lock (e.g. "not active, so replace the program").
 - Never block `Program_Loop` (no `delay()`, network or slow filesystem calls in its path). Never call
   `delay()` inside AsyncWebServer callbacks.
 - If a task polls, it must give way to the scheduler with `vTaskDelay()`. `yield()` does not let

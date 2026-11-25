@@ -10,7 +10,6 @@
 
 // Other variables
 //
-String template_str;  // Stores template pareser output
 char *Errors;         // pointer to string if there are some errors during POST
 
 //flag to use from web update to reboot the ESP
@@ -51,6 +50,7 @@ void Web_auth_update(){
 // Template preprocessor for preferences - preferences.html
 //
 String Preferences_parser(const String& var){
+Recursive_lock state_lock(State_mutex);   // preference strings are freed when changed
 
       if(var=="WiFi_SSID") return html_escape(String(Prefs[PRF_WIFI_SSID].value.str));
  else if(var=="WiFi_Password") return html_escape(String(Prefs[PRF_WIFI_PASS].value.str));
@@ -220,8 +220,9 @@ String Debug_ESP32(const String& var){
 // Generates kiln programs index - /programs/index.html
 //
 void Generate_INDEX(){
+Recursive_lock fs_lock(FS_mutex);   // called from the web, the LCD and the program loop - one writer at a time
+String template_str;                // was a global shared by every task
 String tmp;
-template_str=String();
 
   File index,tmpf,file;
 
@@ -276,8 +277,9 @@ template_str=String();
 // Generates kiln logs index - /logs.html
 //
 void Generate_LOGS_INDEX(){
+Recursive_lock fs_lock(FS_mutex);   // called from the web, the LCD and the program loop - one writer at a time
+String template_str;                // was a global shared by every task
 String tmp;
-template_str=String();
 
   File index,tmpf,file;
 
@@ -331,6 +333,8 @@ template_str=String();
 // Template preprocessor for chart.js
 //
 String Chart_parser(const String& var) {
+Recursive_lock state_lock(State_mutex);   // Program_run* can be replaced from another task
+Recursive_lock fs_lock(FS_mutex);         // CSVFile
 String tmp;
 time_t current_time;
 char *str;
@@ -375,7 +379,7 @@ char *str;
 String About_parser(const String& var) {
 String tmp;
 
-  template_str=String();
+  String template_str;
   DBG dbgLog(LOG_DEBUG,var.c_str());
   if (var == "VERSION"){
     template_str+=PVer;
@@ -492,6 +496,7 @@ String tmp=String(PRG_Directory);
 // Handle delete - second run, post - actual deletion
 //
 void POST_Handle_Delete(AsyncWebServerRequest *request){
+Recursive_lock fs_lock(FS_mutex);
 
   if(!_webAuthWrite(request)) return;
 
@@ -585,6 +590,7 @@ char prname[MAX_PROGNAME+1];
 // Handle prefs upload
 //
 void handlePrefs(AsyncWebServerRequest *request){
+Recursive_lock state_lock(State_mutex);
 boolean save=false;
 
   if(!_webAuthWrite(request)) return;
@@ -654,6 +660,8 @@ int params = request->params();
 // Handle json vars for js
 //
 String handleVars(const String& var){
+Recursive_lock state_lock(State_mutex);   // Program_run* can be replaced from another task
+Recursive_lock fs_lock(FS_mutex);         // CSVFile
 char str[30];
 struct tm timeinfo, *tmm;
 

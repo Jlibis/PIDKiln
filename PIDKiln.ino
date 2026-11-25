@@ -126,6 +126,10 @@ boolean Setup_FS(){
 void setup() {
   char msg[MAX_CHARS_PL];
 
+  // Before anything that could take them - see "Locking between tasks" in PIDKiln.h
+  State_mutex=xSemaphoreCreateRecursiveMutex();
+  FS_mutex=xSemaphoreCreateRecursiveMutex();
+
 // Task watchdog. Program_Loop subscribes itself (it drives the SSR): if it hangs for WDT_TIMEOUT_MS
 // the ESP32 restarts, which switches both relays off. AsyncTCP subscribes its own task too.
 // The idle tasks are not watched - a busy task starves only lower priority tasks, and a starved

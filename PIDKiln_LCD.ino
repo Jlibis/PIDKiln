@@ -218,6 +218,7 @@ static int what=0;
 // Second main view - program graph
 //
 void LCD_display_mainv2(){
+Recursive_lock state_lock(State_mutex);   // reads the running program / preference strings
 uint16_t ttime=0,mxtemp=0,mxx=0,mxy=0,x,y,oldx,oldy,scx=0,scy=0,startx,starty;   // scx/scy stay 0 if the total time/max temp is 0
 char msg[MAX_CHARS_PL];
 
@@ -292,6 +293,7 @@ char msg[MAX_CHARS_PL];
 // Fist main view - basic running program information, status, time, start time, eta, temperatures
 //
 void LCD_display_mainv1(){
+Recursive_lock state_lock(State_mutex);   // reads the running program / preference strings
 char msg[MAX_CHARS_PL];
 uint16_t x=2,y=1;
 uint8_t chh,chw,mch;
@@ -454,6 +456,7 @@ uint8_t chh,center=5;
 // Display programs list
 // action = direction of rotation
 void LCD_display_programs(){
+Recursive_lock fs_lock(FS_mutex);   // reads Programs_DIR / the program edit buffer
 uint8_t chh,start_pos=0,max_lines=0;
 uint16_t y=1,x=2;       // if we get bigger screen :)
 int sel;
@@ -567,6 +570,7 @@ static boolean yes=false;
 // Display full program, step by step
 //
 void LCD_Display_program_full(int dir=0){
+Recursive_lock fs_lock(FS_mutex);   // reads Programs_DIR / the program edit buffer
 uint8_t x=4,y=3,chh,lines;
 static uint8_t pos=0;
 char msg[MAX_CHARS_PL];
@@ -628,7 +632,11 @@ char msg[125],rest[125];  // this should be 5 lines with 125 chars..  it should 
       return;
     }
   }
-  
+
+  // Not above: Load_program_to_run() takes State_mutex, which must not happen while holding FS_mutex
+  Recursive_lock fs_lock(FS_mutex);   // reads Programs_DIR and the program edit buffer
+  if((sel=Find_selected_program())<0) return;   // list changed meanwhile
+
   u8g2.setFont(FONT6);
   u8g2.setFontPosBottom();
   chh=u8g2.getMaxCharHeight();
@@ -732,24 +740,27 @@ char msg[100];
       LCD_display_menu();
       return;
     }else if(what==11){  // load program end exit
-      if(Program_is_active()){  // never replace the program that controls the heater
-        LCD_Show_program_active_msg();
-        LCD_display_main_view();
-        return;
+      boolean replaced=false;
+      {
+        Recursive_lock state_lock(State_mutex);   // check and replace in one step - no start in between
+        if(!Program_is_active()){  // never replace the program that controls the heater
+          DBG dbgLog(LOG_INFO,"[LCD] Replacing current program in memory - start");
+          // We need to define program here
+          Initialize_program_to_run();  // clear current program
+          sprintf(msg,"Manually created quick program.");
+          DBG dbgLog(LOG_DEBUG,"[LCD] Replacing current program in memory:%d \n",strlen(msg));
+          Program_run_desc=(char *)MALLOC((strlen(msg)+1)*sizeof(char));
+          strcpy(Program_run_desc,msg);
+          sprintf(msg,"QuickProgram");
+          DBG dbgLog(LOG_DEBUG,"[LCD] Replacing current program in memory:%d \n",strlen(msg));
+          Program_run_name=(char *)MALLOC((strlen(msg)+1)*sizeof(char));
+          strcpy(Program_run_name,msg);
+          Update_program_step(0, qp[0], qp[1], qp[2]);
+          Program_run_state=PR_READY;
+          replaced=true;
+        }
       }
-      DBG dbgLog(LOG_INFO,"[LCD] Replacing current program in memory - start");
-      // We need to define program here
-      Initialize_program_to_run();  // clear current program
-      sprintf(msg,"Manually created quick program.");
-      DBG dbgLog(LOG_DEBUG,"[LCD] Replacing current program in memory:%d \n",strlen(msg));
-      Program_run_desc=(char *)MALLOC((strlen(msg)+1)*sizeof(char));
-      strcpy(Program_run_desc,msg);
-      sprintf(msg,"QuickProgram");
-      DBG dbgLog(LOG_DEBUG,"[LCD] Replacing current program in memory:%d \n",strlen(msg));
-      Program_run_name=(char *)MALLOC((strlen(msg)+1)*sizeof(char));
-      strcpy(Program_run_name,msg);
-      Update_program_step(0, qp[0], qp[1], qp[2]);
-      Program_run_state=PR_READY;
+      if(!replaced) LCD_Show_program_active_msg();   // outside the lock - it waits 1.5 s
       LCD_display_main_view();
       return;
     }else if(what==10){
@@ -905,6 +916,7 @@ struct tm timeinfo;
 // Display currently loaded preferences on LCD screen
 //
 void LCD_Display_prefs(int dir=0){
+Recursive_lock state_lock(State_mutex);   // reads the running program / preference strings
 uint8_t x=4,y=3,chh,chw,lines;
 static uint8_t pos=1;
 char msg[MAX_CHARS_PL*2],rest[MAX_CHARS_PL*2];   // rest gets everything after the first line of msg

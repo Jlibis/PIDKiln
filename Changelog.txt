@@ -55,6 +55,14 @@ Unreleased
   a changed web login applies to all pages right away (static pages kept the old one until reboot)
 - program upload: a failed structure check shows its error page (a redirect replaced it), and no
   longer makes the next upload fail; LCD main view and graph fixes (title width, unset scales)
+- concurrency: the running program, PID/relay switching and preferences are guarded by one mutex,
+  program files, directory lists, index pages and log files by another. Fixes use-after-free when
+  the web or the LCD replaced a program that another task was reading, and an abort from the web
+  racing the program loop could leave the SSR switched on
+- only the input task draws on the LCD (frames were garbled when two tasks drew); the graph view
+  no longer pulls you out of menus every 10 s during a run
+- energy is read only by the power meter task (it was also read by the program loop, counted twice)
+- the syslog server name is copied (it pointed at a preference string that is freed on change)
 
 1.5 (2024.12.18)
 - updated code to compile against ESP3+ API, Arduino 2+ and latest asynce libraries

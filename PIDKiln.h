@@ -46,6 +46,31 @@ uint32_t windowStartTime;
 PID KilnPID(&kiln_temp, &pid_out, &set_temp, 0, 0, 0, P_ON_E, DIRECT);
 
 /*
+** Locking between tasks (Program_Loop, Input_Loop, AsyncTCP). Two recursive mutexes, created
+** first thing in setup():
+**  State_mutex - the running program (Program_run*, Program_run_state and its transitions), the PID
+**                and the SSR/EMR switching in Program_Loop, Prefs[]
+**  FS_mutex    - the program edit buffer (Program[], Program_desc, Program_name), Programs_DIR,
+**                Logs_DIR, the generated index pages, the log files (CSVFile, LOGFile)
+** Take one with a scope guard:  Recursive_lock state_lock(State_mutex);
+** ORDER: State_mutex before FS_mutex. Never take State_mutex while holding FS_mutex (deadlock).
+** Hold State_mutex briefly and never across delay(): Program_Loop needs it every 10 ms for the SSR.
+** u8g2 needs no lock - only Input_Loop draws (Program_Loop asks for redraws with LCD_refresh_*).
+*/
+SemaphoreHandle_t State_mutex=NULL, FS_mutex=NULL;
+
+class Recursive_lock {
+  SemaphoreHandle_t _m;
+public:
+  explicit Recursive_lock(SemaphoreHandle_t m):_m(m){ if(_m) xSemaphoreTakeRecursive(_m,portMAX_DELAY); }
+  ~Recursive_lock(){ if(_m) xSemaphoreGiveRecursive(_m); }
+  Recursive_lock(const Recursive_lock&)=delete;
+  Recursive_lock& operator=(const Recursive_lock&)=delete;
+};
+
+volatile boolean LCD_refresh_v1=false, LCD_refresh_v2=false;   // set by Program_Loop, drawn by Input_Loop
+
+/*
 ** Global value of LCD screen/menu and menu position
 **
 */

@@ -7,6 +7,7 @@
 // Find and change item in preferences
 //
 boolean Change_prefs_value(String item, String value){
+Recursive_lock state_lock(State_mutex);   // preference strings are freed and replaced here
   for(uint16_t a=0; a<PRF_end; a++){
     if(item.equalsIgnoreCase(String(PrefsName[a]))){  // we have found an matching prefs value
       if(Prefs[a].type==STRING){
@@ -47,6 +48,7 @@ boolean Change_prefs_value(String item, String value){
 // Save prefs to file
 //
 void Save_prefs(){
+Recursive_lock state_lock(State_mutex);   // preference strings are freed and replaced here
 File prf;
 
   DBG dbgLog(LOG_INFO,"[PREFS] Writing prefs to file");
@@ -75,6 +77,7 @@ File prf;
 // Read prefs from file
 //
 void Load_prefs(){
+Recursive_lock state_lock(State_mutex);   // preference strings are freed and replaced here
 File prf;
 String line,item,value;
 int pos=0;

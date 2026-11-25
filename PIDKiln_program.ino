@@ -63,6 +63,7 @@ boolean digits=false;
 // Load program from file to memory - return 0 if success
 //
 uint8_t Load_program(char *file){
+Recursive_lock fs_lock(FS_mutex);
 String line;
 char file_path[32];
 uint8_t err=0;
@@ -122,6 +123,7 @@ File prg;
 // Load programs directory into memory - to sort it etc for easier processing
 //
 uint8_t Load_programs_dir(){
+Recursive_lock fs_lock(FS_mutex);
 uint16_t count=0;
 File dir,file;
 
@@ -179,6 +181,7 @@ File dir,file;
 // Edit program step
 //
 void Update_program_step(uint8_t sstep, uint16_t stemp, uint16_t stime, uint16_t sdwell){
+Recursive_lock state_lock(State_mutex);
   if(Program_run_size<=sstep)
     if(Program_run_size==sstep){ // we are out of the program - but this is just NEXT step, we can add
       Program_run_size++;
@@ -194,6 +197,7 @@ void Update_program_step(uint8_t sstep, uint16_t stemp, uint16_t stime, uint16_t
 // Initizalize program - clear memory
 //
 void Initialize_program_to_run(){
+Recursive_lock state_lock(State_mutex);
   if(Program_run!=NULL){
     free(Program_run);
     Program_run=NULL;
@@ -223,6 +227,8 @@ boolean Program_is_active(){
 // active: replacing it would stop the PID loop and leave the SSR in its last state.
 //
 boolean Load_program_to_run(){
+Recursive_lock state_lock(State_mutex);   // State before FS - see PIDKiln.h
+Recursive_lock fs_lock(FS_mutex);
 
   if(Program_is_active()){
     DBG dbgLog(LOG_ERR,"[PRG] Refusing to replace the program - a program is active\n");
@@ -250,6 +256,7 @@ boolean Load_program_to_run(){
 // Find selected program
 //
 int Find_selected_program(){
+Recursive_lock fs_lock(FS_mutex);
   for(uint16_t a=0; a<Programs_DIR_size; a++) if(Programs_DIR[a].sel>0) return a;
   return -1;  // in case there is NO selected program or there can be no programs at all
 }
@@ -258,6 +265,7 @@ int Find_selected_program(){
 // Move program selection up/down
 //
 void rotate_selected_program(int dir){
+Recursive_lock fs_lock(FS_mutex);
 int a = Find_selected_program();
 
   if(a<0) return;   // no programs
@@ -275,6 +283,7 @@ int a = Find_selected_program();
 // Short function to cleanup program def. after failed load
 //
 byte Cleanup_program(byte err){
+Recursive_lock fs_lock(FS_mutex);
   Program_size=0;
   Program_desc="";
   Program_name="";
@@ -287,6 +296,7 @@ byte Cleanup_program(byte err){
 // Erase program from disk
 //
 boolean Erase_program_file(){
+Recursive_lock fs_lock(FS_mutex);
 char file[32];
 int sel=Find_selected_program();
 
@@ -300,6 +310,7 @@ int sel=Find_selected_program();
 // Cleanly end program
 //
 void END_Program(){
+Recursive_lock state_lock(State_mutex);
 
   DBG dbgLog(LOG_INFO,"[PRG] Ending program cleanly\n");
   Program_run_state=PR_ENDED;
@@ -318,6 +329,7 @@ void END_Program(){
 // Must work in every active state - including PR_THRESHOLD, which it used to ignore.
 //
 void ABORT_Program(uint8_t error){
+Recursive_lock state_lock(State_mutex);
 
   if(Program_is_active()){
     Program_error=error;
@@ -333,6 +345,7 @@ void ABORT_Program(uint8_t error){
 // Pause program. We are keeping current temperature and wait until it's resumed
 //
 void PAUSE_Program(){
+Recursive_lock state_lock(State_mutex);
   if(Program_run_state==PR_RUNNING) Program_run_state=PR_PAUSED;
 }
 
@@ -340,6 +353,7 @@ void PAUSE_Program(){
 // Resume pasued program.
 //
 void RESUME_Program(){
+Recursive_lock state_lock(State_mutex);
   if(Program_run_state==PR_PAUSED) Program_run_state=PR_RUNNING;
 }
 
@@ -347,6 +361,7 @@ void RESUME_Program(){
 // Recalculate ETA based on current step
 //
 void Program_recalculate_ETA(boolean dwell=false){
+Recursive_lock state_lock(State_mutex);
 
   Program_run_end=time(NULL);
   for(uint16_t a=Program_run_step; a<Program_run_size;a++){
@@ -360,6 +375,7 @@ void Program_recalculate_ETA(boolean dwell=false){
 // This is functional called every second - if program is running. It calculates temperature grow, sets targets etc.
 //
 void Program_calculate_steps(boolean prg_start=false){
+Recursive_lock state_lock(State_mutex);
 static time_t step_start,next_step_end;
 static uint16_t cnt1=1,cnt2=1;
 static boolean is_it_dwell=false;
@@ -450,6 +466,7 @@ static boolean is_it_dwell=false;
 // Start running the in memory program
 //
 void START_Program(){
+Recursive_lock state_lock(State_mutex);
 
   // Start only a loaded program that isn't active (ready, ended, aborted). Starting an active one
   // used to restart it from step 0; a paused program is resumed with RESUME_Program() instead.
@@ -580,6 +597,7 @@ uint32_t now;
     // Interrupts triggered ones per second
     // 
     if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE){
+      Recursive_lock state_lock(State_mutex);   // nothing may load, start or abort a program in the middle of this
 
       // Update temperature readout
       Update_TemperatureA();
@@ -604,13 +622,10 @@ uint32_t now;
         Update_TemperatureB();      // this does not have to be updated so often as kiln temp
       }
 #endif
-#ifdef ENERGY_MON_PIN
-      if(cnt1==4){
-        Read_Energy_INPUT();
-      }
-#endif
-      // Do Main view screen refreshing if there is a program and if it's running
-      if(LCD_State==SCR_MAIN_VIEW && Program_run_size && LCD_Main==MAIN_VIEW1) LCD_display_mainv1();
+      // Energy is read by Power_Loop only - reading it here too counted it twice
+
+      // Main view refresh - Input_Loop draws it (it owns the display), and only if it is still shown
+      LCD_refresh_v1=true;
 
       if(Program_is_active()){
         // Do all the program recalc
@@ -618,27 +633,33 @@ uint32_t now;
 
         if(cnt1==9){
           cnt1=0;
-          if(LCD_Main==MAIN_VIEW2 && (Program_run_state==PR_RUNNING || Program_run_state==PR_PAUSED)) LCD_display_mainv2();
+          LCD_refresh_v2=true;
           DBG dbgLog(LOG_INFO,"[PRG] Pid_out RAW:%.2f Pid_out:%.2f Now-window:%d WindowSize:%d Prg_state:%d\n",pid_out,pid_out*PID_WINDOW_DIVIDER,(now - windowStartTime), Prefs[PRF_PID_WINDOW].value.uint16, (byte)Program_run_state);
         }
        }
     }
 
-    // Fail safe on NaN/inf: PID_v1 never recovers from a NaN, and comparisons with it are false
-    if(Program_is_active() && !(isfinite(kiln_temp) && isfinite(set_temp) && isfinite(pid_out))){
-      DBG dbgLog(LOG_ERR,"[PRG] Invalid value - kiln:%f set:%f pid_out:%f. Aborting\n",kiln_temp,set_temp,pid_out);
-      ABORT_Program(PR_ERR_BAD_VALUE);
-    }
+    {
+      // Under the lock: otherwise an abort from another task could switch the SSR off between our
+      // state check and Enable_SSR(), and the SSR would stay on with no program to switch it off
+      Recursive_lock state_lock(State_mutex);
 
-    // Do the PID stuff
-    if(Program_is_active()){
-      KilnPID.Compute();
-
-      if (now - windowStartTime > Prefs[PRF_PID_WINDOW].value.uint16){ //time to shift the Relay Window
-        windowStartTime += Prefs[PRF_PID_WINDOW].value.uint16;
+      // Fail safe on NaN/inf: PID_v1 never recovers from a NaN, and comparisons with it are false
+      if(Program_is_active() && !(isfinite(kiln_temp) && isfinite(set_temp) && isfinite(pid_out))){
+        DBG dbgLog(LOG_ERR,"[PRG] Invalid value - kiln:%f set:%f pid_out:%f. Aborting\n",kiln_temp,set_temp,pid_out);
+        ABORT_Program(PR_ERR_BAD_VALUE);
       }
-      if (pid_out*PID_WINDOW_DIVIDER > now - windowStartTime) Enable_SSR();
-      else Disable_SSR();
+
+      // Do the PID stuff
+      if(Program_is_active()){
+        KilnPID.Compute();
+
+        if (now - windowStartTime > Prefs[PRF_PID_WINDOW].value.uint16){ //time to shift the Relay Window
+          windowStartTime += Prefs[PRF_PID_WINDOW].value.uint16;
+        }
+        if (pid_out*PID_WINDOW_DIVIDER > now - windowStartTime) Enable_SSR();
+        else Disable_SSR();
+      }
     }
     //yield();
     vTaskDelay(10); // This should enable to run other tasks on this core

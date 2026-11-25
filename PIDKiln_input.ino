@@ -140,6 +140,17 @@ void Input_Loop(void * parameter) {
       DBG dbgLog(LOG_DEBUG,"[INPUT] Encoder rotated %d\n",encoderValue);
       encoderValue=0;
     }
+
+    // Main view refreshes asked for by Program_Loop. Only this task draws, so frames don't get mixed,
+    // and only while the main view is on screen (view 2 used to pull the user out of menus)
+    if(LCD_refresh_v1){
+      LCD_refresh_v1=false;
+      if(LCD_State==SCR_MAIN_VIEW && LCD_Main==MAIN_VIEW1 && Program_run_size) LCD_display_mainv1();
+    }
+    if(LCD_refresh_v2){
+      LCD_refresh_v2=false;
+      if(LCD_State==SCR_MAIN_VIEW && LCD_Main==MAIN_VIEW2 && (Program_run_state==PR_RUNNING || Program_run_state==PR_PAUSED)) LCD_display_mainv2();
+    }
     vTaskDelay(pdMS_TO_TICKS(10));  // yield() would not let lower priority tasks (IDLE0) run - this loop starved them
   }
 }
