@@ -1,0 +1,6 @@
+[submodule "libraries/MAX31855"]
+	path = libraries/MAX31855
+	url = https://github.com/Saur0o0n/MAX31855
+[submodule "libraries/Syslog"]
+	path = libraries/Syslog
+	url = https://github.com/arcao/Syslog
