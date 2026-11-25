@@ -118,6 +118,8 @@ int pos=0;
 //
 void Prefs_updated_hook(){
 
+  Web_auth_update();   // static web pages use the new login right away (they used to keep the old one until reboot)
+
   // We have running program - update PID parameters
   if(Program_is_active()){
     // Pass POn too, so a changed PID_POE also applies during the run (the 3-argument form keeps the old one)

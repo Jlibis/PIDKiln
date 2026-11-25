@@ -33,6 +33,15 @@ Any other <code>.bin</code> file is flashed as firmware.</p>
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
+// Basic auth for the static file handlers. Unlike setAuthentication(), which copies the credentials
+// once, the middleware can be updated when the preferences change (Web_auth_update()).
+AsyncAuthenticationMiddleware Web_auth;
+
+void Web_auth_update(){
+  Web_auth.setUsername(Prefs[PRF_AUTH_USER].value.str ? Prefs[PRF_AUTH_USER].value.str : "");
+  Web_auth.setPassword(Prefs[PRF_AUTH_PASS].value.str ? Prefs[PRF_AUTH_PASS].value.str : "");
+}
+
 
 /*
 ** Core/main HTTP functions
@@ -60,7 +69,7 @@ String Preferences_parser(const String& var){
  else if(var=="NTP_Server1") return html_escape(String(Prefs[PRF_NTPSERVER1].value.str));
  else if(var=="NTP_Server2") return html_escape(String(Prefs[PRF_NTPSERVER2].value.str));
  else if(var=="NTP_Server3") return html_escape(String(Prefs[PRF_NTPSERVER3].value.str));
- else if(var=="GMT_Offset_sec") return String(Prefs[PRF_GMT_OFFSET].value.int16);
+ else if(var=="GMT_Offset_sec") return String(Prefs[PRF_GMT_OFFSET].value.int32);
  else if(var=="Daylight_Offset_sec") return String(Prefs[PRF_DAYLIGHT_OFFSET].value.int16);
  else if(var=="Initial_Date") return html_escape(String(Prefs[PRF_INIT_DATE].value.str));
  else if(var=="Initial_Time") return html_escape(String(Prefs[PRF_INIT_TIME].value.str));
@@ -393,6 +402,8 @@ String tmp=String(PRG_Directory);
   tmp.concat("/");
   tmp.concat(filename.c_str());
 
+  if(!index) abort=false;   // a new upload - an error in the previous one's last chunk must not abort this one
+
   // Abort file upload if file is too large or there are some not allowed characters in program
   if(abort){
     abort=false;
@@ -405,7 +416,7 @@ String tmp=String(PRG_Directory);
   // Checking how much has been uploaded - if more then MAX_Prog_File_Size - abort
   if(len+index>MAX_Prog_File_Size){
      DBG dbgLog(LOG_DEBUG,"[HTTP] Uploaded file too large! Aborting\n");
-     request->send(406, "text/html", "<html><body><h1>File is too large!</h1> Current limit is "+String(MAX_Prog_File_Size)+"<br><br><a href=/>Return to main view</a></body></html");
+     request->send(406, "text/html", "<html><body><h1>File is too large!</h1> Current limit is "+String(MAX_Prog_File_Size)+"<br><br><a href=/>Return to main view</a></body></html>");
      abort=true;
      return;
   }
@@ -418,7 +429,7 @@ String tmp=String(PRG_Directory);
       const AsyncWebHeader* h = request->getHeader("Content-Length");
       if(h->value().toInt()>MAX_Prog_File_Size){
         DBG dbgLog(LOG_DEBUG,"[HTTP] Uploaded file too large! Aborting\n");
-        request->send(406, "text/html", "<html><body><h1>File is too large!</h1> Current limit is "+String(MAX_Prog_File_Size)+"<br><br><a href=/programs/>Return to programs view</a></body></html");
+        request->send(406, "text/html", "<html><body><h1>File is too large!</h1> Current limit is "+String(MAX_Prog_File_Size)+"<br><br><a href=/programs/>Return to programs view</a></body></html>");
         abort=true;
         return;
       }
@@ -427,7 +438,7 @@ String tmp=String(PRG_Directory);
     // Abort if filename is too long (the limit comes from SPIFFS; buffers and the web UI still assume it)
     if(tmp.length()>MAX_FILENAME){
       DBG dbgLog(LOG_DEBUG,"[HTTP] Uploaded filename is too large! Aborting\n");
-      request->send(406, "text/html", "<html><body><h1>Filename is too long!</h1> Current limit is "+String(MAX_FILENAME)+"letters for directory and filename, so program name can be only "+String(MAX_PROGNAME)+" <br><br><a href=/programs/>Return to programs view</a></body></html");
+      request->send(406, "text/html", "<html><body><h1>Filename is too long!</h1> Current limit is "+String(MAX_FILENAME)+"letters for directory and filename, so program name can be only "+String(MAX_PROGNAME)+" <br><br><a href=/programs/>Return to programs view</a></body></html>");
       abort=true;
       return;
     }
@@ -437,7 +448,7 @@ String tmp=String(PRG_Directory);
     // Abort if filename contains not allowed characters or trys to overwrite index.html
     if(!valid_filename(tmp_filename) || filename.compareTo("index.html")==0){
       DBG dbgLog(LOG_DEBUG,"[HTTP] Uploaded filename containg bad characters! Aborting\n");
-      request->send(406, "text/html", "<html><body><h1>Filename is bad!</h1> Filename contains not allowed characters - use letters, numbers and . _ signs <br><br><a href=/programs/>Return to programs view</a></body></html");
+      request->send(406, "text/html", "<html><body><h1>Filename is bad!</h1> Filename contains not allowed characters - use letters, numbers and . _ signs <br><br><a href=/programs/>Return to programs view</a></body></html>");
       abort=true;
       return;
     }
@@ -448,7 +459,7 @@ String tmp=String(PRG_Directory);
   DBG dbgLog(LOG_DEBUG,"[HTTP] Next iteration of file upload...\n");
   for(size_t i=0; i<len; i++){
     if(!check_valid_chars(data[i])){ // Basic sanitization - check for allowed characters
-      request->send(200, "text/html", "<html><body><h1>File contains not allowed character(s)!</h1> You can use all letters, numbers and basic symbols in ASCII code.<br><br><a href=/>Return to main view</a></body></html");
+      request->send(200, "text/html", "<html><body><h1>File contains not allowed character(s)!</h1> You can use all letters, numbers and basic symbols in ASCII code.<br><br><a href=/>Return to main view</a></body></html>");
       delete_file(newFile);
       DBG dbgLog(LOG_ERR,"[HTTP] Basic program check failed!\n");
       abort=true;
@@ -466,11 +477,10 @@ String tmp=String(PRG_Directory);
     uint8_t err=Load_program(fname);
     
     if(err){  // program did not validate correctly
-      request->send(200, "text/html", "<html><body><h1>Program stucture is incorrect!</h1> Error code "+String(err)+".<br><br><a href=/programs/>Return to programs</a></body></html");
+      // One response only: the redirect that followed replaced this page, so the error was never shown
+      request->send(400, "text/html", "<html><body><h1>Program stucture is incorrect!</h1> Error code "+String(err)+".<br><br><a href=/programs/>Return to programs</a></body></html>");
       delete_file(newFile=LittleFS.open( tmp.c_str(), "r"));  // we need to open file again - to close it with already existing function
       DBG dbgLog(LOG_ERR,"[HTTP] Detailed program check failed!\n");
-      abort=true; // this will never happend...
-      request->redirect("/programs");
     }else{ // Everything went fine - commit file
       Generate_INDEX();
       request->redirect("/programs");
@@ -847,14 +857,25 @@ bool get_program_name(const String &value, char *out, size_t out_size){
 **
 */
 void SETUP_WebServer(void) {
+static boolean routes_added=false;
+
+  Web_auth.setAuthType(AsyncAuthType::AUTH_BASIC);   // same scheme as _webAuth(), so the browser logs in once
+  Web_auth_update();
+  if(routes_added){   // WiFi reconnect: the handlers exist already - adding them again duplicated every route
+    server.end();
+    server.begin();
+    return;
+  }
+  routes_added=true;
+
   // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     // Without web UI files only the (built-in) flash page works - send the user there
     request->redirect(LittleFS.exists("/index.html") ? "/index.html" : "/flash_firmware.html");
   });
 
-  server.serveStatic("/index.html", LittleFS, "/index.html").setAuthentication(Prefs[PRF_AUTH_USER].value.str,Prefs[PRF_AUTH_PASS].value.str);
-  server.serveStatic("/index_local.html", LittleFS, "/index_local.html").setAuthentication(Prefs[PRF_AUTH_USER].value.str,Prefs[PRF_AUTH_PASS].value.str);
+  server.serveStatic("/index.html", LittleFS, "/index.html").addMiddleware(&Web_auth);
+  server.serveStatic("/index_local.html", LittleFS, "/index_local.html").addMiddleware(&Web_auth);
   
   server.on("/index.html", HTTP_POST, handleIndexPost);
   server.on("/index_local.html", HTTP_POST, handleIndexPost);
@@ -865,7 +886,7 @@ void SETUP_WebServer(void) {
   });
 
 
-  if(Prefs[PRF_HTTP_JS_LOCAL].value.str){
+  if(Prefs[PRF_HTTP_JS_LOCAL].value.uint8){   // UINT8 pref - reading .str only worked because the rest of the union was 0
     server.on("/js/jquery-3.4.1.js", HTTP_GET, [](AsyncWebServerRequest* request) {
       AsyncWebServerResponse* response = request->beginResponse(LittleFS, "/js/jquery-3.4.1.js", "text/javascript");
       response->addHeader("Content-Encoding", "gzip");
@@ -900,8 +921,8 @@ void SETUP_WebServer(void) {
   });
 
   // Set default file for programs to index.html - because webserver was programmed by some Windows @%$$# :/
-  server.serveStatic("/programs/", LittleFS, "/programs/").setDefaultFile("index.html").setAuthentication(Prefs[PRF_AUTH_USER].value.str,Prefs[PRF_AUTH_PASS].value.str);
-  server.serveStatic("/logs/", LittleFS, "/logs/").setDefaultFile("index.html").setAuthentication(Prefs[PRF_AUTH_USER].value.str,Prefs[PRF_AUTH_PASS].value.str);
+  server.serveStatic("/programs/", LittleFS, "/programs/").setDefaultFile("index.html").addMiddleware(&Web_auth);
+  server.serveStatic("/logs/", LittleFS, "/logs/").setDefaultFile("index.html").addMiddleware(&Web_auth);
 
   // Upload new programs
   server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request){
@@ -952,7 +973,7 @@ void SETUP_WebServer(void) {
   server.serveStatic("/icons/", LittleFS, "/icons/");
   server.serveStatic("/js/", LittleFS, "/js/");
   server.serveStatic("/css/", LittleFS, "/css/");
-  server.serveStatic(PREFS_FILE, LittleFS, PREFS_FILE).setAuthentication(Prefs[PRF_AUTH_USER].value.str,Prefs[PRF_AUTH_PASS].value.str);
+  server.serveStatic(PREFS_FILE, LittleFS, PREFS_FILE).addMiddleware(&Web_auth);
   server.serveStatic("/favicon.ico", LittleFS, "/icons/heat.png");
 
   server.onNotFound([](AsyncWebServerRequest *request){

@@ -218,7 +218,7 @@ static int what=0;
 // Second main view - program graph
 //
 void LCD_display_mainv2(){
-uint16_t ttime=0,mxtemp=0,mxx=0,mxy=0,x,y,oldx,oldy,scx,scy,startx,starty;
+uint16_t ttime=0,mxtemp=0,mxx=0,mxy=0,x,y,oldx,oldy,scx=0,scy=0,startx,starty;   // scx/scy stay 0 if the total time/max temp is 0
 char msg[MAX_CHARS_PL];
 
   if(!Program_run_size) return; //  don't go in if no program loaded
@@ -306,10 +306,10 @@ struct tm timeinfo,*tmm;
   u8g2.drawFrame(0,0,SCREEN_W,SCREEN_H);
   u8g2.setFont(FONT7);
   u8g2.setFontPosBottom();
-  strcmp(msg," ");
   chh=u8g2.getMaxCharHeight()+2;
   chw=u8g2.getMaxCharWidth();
-  mch=floor(SCREEN_W-4/chw);  // how many chars per line...
+  mch=(SCREEN_W-4)/chw;  // how many chars per line... (was SCREEN_W-4/chw = 128)
+  if(mch>=sizeof(msg)) mch=sizeof(msg)-1;
   sprintf(msg,"%.*s",mch,Program_run_name);
   u8g2.drawBox(0,0, SCREEN_W, chh+1);
   u8g2.setDrawColor(0);
@@ -907,7 +907,7 @@ struct tm timeinfo;
 void LCD_Display_prefs(int dir=0){
 uint8_t x=4,y=3,chh,chw,lines;
 static uint8_t pos=1;
-char msg[MAX_CHARS_PL*2],rest[MAX_CHARS_PL];
+char msg[MAX_CHARS_PL*2],rest[MAX_CHARS_PL*2];   // rest gets everything after the first line of msg
   
   LCD_State=SCR_PREFERENCES;
   if(dir==0) pos=1;
@@ -928,11 +928,16 @@ char msg[MAX_CHARS_PL*2],rest[MAX_CHARS_PL];
   u8g2.drawStr(x,y-2,msg);
   u8g2.setDrawColor(1);
   
-  for(int a=pos;a<=PRF_end && (a-pos)<lines && y<SCREEN_H-5;a++){
-    if(Prefs[a].type==STRING) sprintf(msg,"%s = %s",PrefsName[a],Prefs[a].value.str);
-    else if(Prefs[a].type==VFLOAT) sprintf(msg,"%s = %.2f",PrefsName[a],Prefs[a].value.vfloat);
-    else if(a>=PRF_end) sprintf(msg," ");
-    else sprintf(msg,"%s = %d",PrefsName[a],Prefs[a].value.str);
+  for(int a=pos;a<PRF_end && (a-pos)<lines && y<SCREEN_H-5;a++){   // Prefs[PRF_end] is past the end of the array
+    switch(Prefs[a].type){   // read the union member that matches the type (printing .str with %d only worked by accident)
+      case STRING: snprintf(msg,sizeof(msg),"%s = %s",PrefsName[a],Prefs[a].value.str?Prefs[a].value.str:""); break;
+      case VFLOAT: snprintf(msg,sizeof(msg),"%s = %.2f",PrefsName[a],Prefs[a].value.vfloat); break;
+      case UINT8:  snprintf(msg,sizeof(msg),"%s = %u",PrefsName[a],(unsigned)Prefs[a].value.uint8); break;
+      case UINT16: snprintf(msg,sizeof(msg),"%s = %u",PrefsName[a],(unsigned)Prefs[a].value.uint16); break;
+      case INT16:  snprintf(msg,sizeof(msg),"%s = %d",PrefsName[a],(int)Prefs[a].value.int16); break;
+      case INT32:  snprintf(msg,sizeof(msg),"%s = %ld",PrefsName[a],(long)Prefs[a].value.int32); break;
+      default:     snprintf(msg,sizeof(msg),"%s = -",PrefsName[a]); break;
+    }
     if(return_LCD_string(msg,rest,-4)){
       u8g2.drawStr(x,y+=chh,msg);
       y+=chh;

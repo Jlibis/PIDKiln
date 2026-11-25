@@ -9,12 +9,13 @@ double EnW_last=0;    // last energy consumption for csv report
 // Starts a new log file
 //
 void Init_log_file(){
-char str[33];
+char str[33],csv_name[33];
 struct tm timeinfo, *tmm;
 
   if(CSVFile) CSVFile.close();
   if(getLocalTime(&timeinfo)) strftime(str, 32, "/logs/%y%m%d_%H%M%S.csv", &timeinfo); //YYMMDD_HHMMSS.log
-  else sprintf(str,"/logs/%d.csv",millis());  // if we don't have a clock - use millis - this should NOT happend
+  else snprintf(str,sizeof(str),"/logs/%lu.csv",(unsigned long)millis());  // if we don't have a clock - use millis - this should NOT happend
+  strlcpy(csv_name,str,sizeof(csv_name));   // str is reused below for the .log name and dates
   DBG dbgLog(LOG_INFO,"[LOG] Trying to create log file:%s\n",str);
   
   if(CSVFile=LittleFS.open(str, "w")){
@@ -44,7 +45,7 @@ struct tm timeinfo, *tmm;
       }
       LOGFile.printf("PID values. Kp:%.2f Ki:%.2f Kd:%.2f\n",Prefs[PRF_PID_KP].value.vfloat,Prefs[PRF_PID_KI].value.vfloat,Prefs[PRF_PID_KD].value.vfloat);
       LOGFile.printf("Start temperature: %.1fC\n",kiln_temp);
-      LOGFile.printf("CSV filename: %s\n-=-=-= Starting program =-=-=-=-\n",str);
+      LOGFile.printf("CSV filename: %s\n-=-=-= Starting program =-=-=-=-\n",csv_name);
       LOGFile.flush();
 //      LOGFile.close();
     }else{
@@ -100,7 +101,7 @@ char str[33];
       LOGFile.printf("Program ended at: %s\n", str);
     }
     LOGFile.printf("End temperature: %.1fC\n",kiln_temp);
-    if(Energy_Wattage) LOGFile.printf("Used power: %.1f W/h\n",Energy_Wattage);
+    if(Energy_Usage>0) LOGFile.printf("Used energy: %.1f Wh\n",Energy_Usage);   // printed Energy_Wattage (uint16_t, current power) with %f
     if(Program_error){
       LOGFile.printf("Program aborted with error: %d\n",Program_error);
     }

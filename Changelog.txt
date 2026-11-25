@@ -44,6 +44,17 @@ Unreleased
   housing limits also without a running program (relays off, alarm on)
 - MIN_Temperature can be negative
 - thermocouple faults abort with the K-probe error codes (8/11) instead of the internal-sensor ones
+- fixed GMT offsets above 9.1 hours (configTime and the preferences page read the INT32 pref as
+  16 bit); initial date/time parsing no longer copies into a fixed buffer or leaves struct tm fields
+  uninitialised, and tolerates missing parts
+- log files: the footer shows the used energy (it printed the current power, wrongly formatted), and
+  "CSV filename" shows the file name instead of a date
+- LCD preferences screen: values shown according to their type (it printed string pointers as
+  numbers), no read past the end of the preferences table, no buffer overrun for long values
+- the web server registers its handlers once - a WiFi reconnect used to register them all again;
+  a changed web login applies to all pages right away (static pages kept the old one until reboot)
+- program upload: a failed structure check shows its error page (a redirect replaced it), and no
+  longer makes the next upload fail; LCD main view and graph fixes (title width, unset scales)
 
 1.5 (2024.12.18)
 - updated code to compile against ESP3+ API, Arduino 2+ and latest asynce libraries

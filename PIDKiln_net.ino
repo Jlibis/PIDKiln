@@ -24,36 +24,22 @@ struct tm timeinfo;
 //
 void Setup_start_date(){
 struct timeval tv;
-struct tm mytm;
-uint8_t pos;
-char *tmp,msg[20];
+struct tm mytm={};   // zeroed - tm_isdst and the other fields used to be stack garbage
+int y=2000,mo=1,d=1,h=0,mi=0,s=0;   // used for whatever the prefs don't give
 
-  strcpy(msg,Prefs[PRF_INIT_DATE].value.str);
-  tmp=strtok(msg,".-:");
-  DBG dbgLog(LOG_INFO,"[NET] Y:%s ",tmp);
-  mytm.tm_year = atoi(tmp)-1900;  // year after 1900
-  
-  tmp=strtok(NULL,".-:");
-  DBG dbgLog(LOG_INFO,"[NET] M:%s ",tmp);
-  mytm.tm_mon = atoi(tmp)-1;        //0-11 WHY???
-  
-  tmp=strtok(NULL,".-:");
-  DBG dbgLog(LOG_INFO,"[NET] D:%s ",tmp);
-  mytm.tm_mday = atoi(tmp);       //1-31 - depending on month
+  // Initial_Date "YYYY-MM-DD" and Initial_Time "HH:MM:SS" (separators . - : are all accepted)
+  if(Prefs[PRF_INIT_DATE].value.str) sscanf(Prefs[PRF_INIT_DATE].value.str,"%d%*[.:-]%d%*[.:-]%d",&y,&mo,&d);
+  if(Prefs[PRF_INIT_TIME].value.str) sscanf(Prefs[PRF_INIT_TIME].value.str,"%d%*[.:-]%d%*[.:-]%d",&h,&mi,&s);
+  DBG dbgLog(LOG_INFO,"[NET] Initial date and time: %04d-%02d-%02d %02d:%02d:%02d\n",y,mo,d,h,mi,s);
 
-  strcpy(msg,Prefs[PRF_INIT_TIME].value.str);
-  tmp=strtok(msg,".-:");
-  DBG dbgLog(LOG_INFO,"[NET] H:%s ",tmp);
-  mytm.tm_hour = atoi(tmp);       //0-23
+  mytm.tm_year = y-1900;  // year after 1900
+  mytm.tm_mon = mo-1;     // 0-11
+  mytm.tm_mday = d;
+  mytm.tm_hour = h;
+  mytm.tm_min = mi;
+  mytm.tm_sec = s;
+  mytm.tm_isdst = -1;     // let mktime decide
 
-  tmp=strtok(NULL,".-:");
-  DBG dbgLog(LOG_INFO,"[NET] m:%s ",tmp);
-  mytm.tm_min = atoi(tmp);        //0-59
-
-  tmp=strtok(NULL,".-:");
-  DBG dbgLog(LOG_INFO,"[NET] s:%s\n",tmp);
-  mytm.tm_sec = atoi(tmp);        //0-59
-  
   time_t t = mktime(&mytm);
 
   tv.tv_sec = t;
@@ -139,7 +125,7 @@ struct tm timeinfo;
     if(Prefs[PRF_WIFI_MODE].value.uint8==1 || Prefs[PRF_WIFI_MODE].value.uint8==2){ // 1 - tries as client if failed, be AP; 2 - just try as client
       err=Start_WiFi_CLIENT();
       if(!err){
-        configTime(Prefs[PRF_GMT_OFFSET].value.int16, Prefs[PRF_DAYLIGHT_OFFSET].value.int16, Prefs[PRF_NTPSERVER1].value.str, Prefs[PRF_NTPSERVER2].value.str, Prefs[PRF_NTPSERVER3].value.str); // configure RTC clock with NTP server - or at least try
+        configTime(Prefs[PRF_GMT_OFFSET].value.int32, Prefs[PRF_DAYLIGHT_OFFSET].value.int16, Prefs[PRF_NTPSERVER1].value.str, Prefs[PRF_NTPSERVER2].value.str, Prefs[PRF_NTPSERVER3].value.str); // configure RTC clock with NTP server - or at least try
         SETUP_WebServer(); // Setup function for Webserver from PIDKiln_http.ino
         initSysLog();
         return 0;    // all is ok - connected

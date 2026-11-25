@@ -19,8 +19,9 @@ all compile in CI, none is hardware-tested yet):
 | `fix/program-parser-and-runtime-guards` | F4 (0-minute step jumps the set point; NaN/inf aborts), M1, M2, M3, M4, M5, and the empty-program part of M12 |
 | `fix/thermal-runaway` | F1 (heating stall via `Thermal_Runaway`, stuck-SSR detection; README/conf now describe what is implemented) |
 | `fix/watchdogs-and-safety-cadence` | F2, F3, F5, F6 error codes (the grace counter is unchanged: it tolerates sporadic errors by design, and the last good temperature is used for at most `MAX31855_Error_Grace_Count` reads) |
+| `fix/correctness-m7-m12` | M7, M8, M9, M10, M11 (handlers registered once; static pages use an auth middleware that follows login changes), M12 |
 
-Still open: S7–S9, M7–M12, C1–C4, and the rest of sections 5–6. Also noticed:
+Still open: S7–S9, C1–C4, and the rest of sections 5–6. Also noticed:
 `DIRECTORY.filesize` is `uint16_t`, so log files over 64 KiB show a wrong size.
 
 ## Verdict
