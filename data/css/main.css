@@ -14,7 +14,7 @@ table.debug {
 table.debug th {
   font-size: 1.2em;
   font-weight: bold;
-  background-color: #4CAF50;
+  background-color: #2E7D32;   /* was #4CAF50 - white text on it had 2.8:1 contrast, this has 5.1:1 */
   color: white;
   padding: 8px;
   padding-left: 20px;
@@ -46,7 +46,7 @@ table.debug th {
 
 legend {
   font-weight: bold;
-  background-color: #4CAF50;
+  background-color: #2E7D32;   /* was #4CAF50 - white text on it had 2.8:1 contrast, this has 5.1:1 */
   color: white;
   padding: 8px;
   padding-left: 20px;
@@ -94,7 +94,7 @@ input[type=submit].floatr {
 }
 
 input[type=submit]:hover {
-  background-color: #4CAF50;
+  background-color: #2E7D32;   /* was #4CAF50 - white text on it had 2.8:1 contrast, this has 5.1:1 */
   border-radius: 7px;
 }
 

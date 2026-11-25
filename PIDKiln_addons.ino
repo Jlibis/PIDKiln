@@ -56,15 +56,6 @@ void Disable_EMR(){
   digitalWrite(EMR_RELAY_PIN, LOW);
 }
 
-void print_bits(uint32_t raw){
-    for (int i = 31; i >= 0; i--)
-    {
-        bool b = bitRead(raw, i);
-        Serial.print(b);
-    }
-
-Serial.println();
-}
 
 
 // ThermocoupleA temperature readout
@@ -74,8 +65,6 @@ uint32_t raw;
 double kiln_tmp1;
 
   raw = ThermocoupleA.readRawData();
-//Serial.print("A");
-//print_bits(raw);
 
   if(!raw){ // probably MAX31855 not connected
     DBG dbgLog(LOG_ERR,"[ADDONS] MAX31855 for ThermocoupleA did not respond\n");
@@ -130,8 +119,6 @@ uint32_t raw;
 double case_tmp1;
 
   raw = ThermocoupleB.readRawData();
-//Serial.print("B");
-//print_bits(raw);
   if(!raw){ // probably MAX31855 not connected
     DBG dbgLog(LOG_ERR,"[ADDONS] MAX31855 for ThermocoupleB did not respond\n");
     ABORT_Program(PR_ERR_MAX31B_NC);

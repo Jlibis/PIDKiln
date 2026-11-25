@@ -217,7 +217,7 @@ const char allowed_chars_in_filename[]="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN
 
 struct DIRECTORY {
   char filename[MAX_PROGNAME+1];
-  uint16_t filesize=0;
+  uint32_t filesize=0;   // log files can pass 64 KiB
   uint8_t sel=0;
 };
 
@@ -265,10 +265,10 @@ typedef enum { // program menu positions
   PRF_NONE,
   PRF_WIFI_SSID,
   PRF_WIFI_PASS,
-  PRF_WIFI_MODE,      // 0 - connect to AP if failed, be AP; 1 - connect only to AP; 2 - be only AP
+  PRF_WIFI_MODE,      // 0 - no WiFi; 1 - connect to AP, if that fails be AP; 2 - connect only to AP; 3 - be only AP
   PRF_WIFI_RETRY_CNT,
   PRF_WIFI_AP_NAME,
-  PRF_WIFI_AP_USERNAME,
+  PRF_WIFI_AP_USERNAME,   // unused (WPA2-PSK has no user name) - kept so the config keys keep their order
   PRF_WIFI_AP_PASS,
 
   PRF_HTTP_JS_LOCAL,

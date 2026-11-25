@@ -14,6 +14,9 @@ commits so they can still be compared with or sent upstream.
 | `PIDKiln.ino` | Entry point: `setup()`, config switches (`DEBUG`, `MALLOC`), shared helpers |
 | `PIDKiln.h` | Pin map, global state, enums, preference table. Included once, by `PIDKiln.ino` |
 | `PIDKiln_<module>.ino` | One subsystem per file: `program` (PID + program runner), `addons` (relays, thermocouples, power meter, alarm), `http`, `LCD`, `input`, `net`, `prefs`, `logs` |
+| `src/` | Plain C++ headers without Arduino dependencies (program step parser, ramp math) - host-testable |
+| `tests/` | Host unit tests for `src/` (`g++`, run by CI) |
+| `libraries/` | Git submodules: the MAX31855 fork and Syslog |
 | `data/` | LittleFS image: web UI, `etc/pidkiln.conf` (default config), sample programs |
 | `OTA_Install/` | Separate installer sketch, plus prebuilt binaries (these can lag behind the source) |
 | `Documentation/` | Wiring diagrams, component photos, PID tuning results |
@@ -30,7 +33,7 @@ remove a symbol.
   `arduino-cli compile --profile wrover --build-property "compiler.cpp.extra_flags=-DTEMPLATE_PLACEHOLDER='~'" .`
   (arduino-cli 1.3 or newer). CI (`.github/workflows/build.yml`) runs the same command. Bump pinned
   versions one at a time and on purpose.
-- The app partition is about 90% full (1.18 MB of 1.31 MB). Watch the size the compiler reports
+- The app partition is about 92% full (1.21 MB of 1.31 MB). Watch the size the compiler reports
   when adding code or libraries.
 - Toolchain: Arduino IDE 2.x or `arduino-cli` with the **ESP32 Arduino core 3.x** (v1.5+ needs it).
 - Libraries: ESPAsyncWebServer + AsyncTCP (the ESP32Async/mathieucarbou forks, API 3.x), PID_v1
@@ -39,9 +42,11 @@ remove a symbol.
 - ESPAsyncWebServer must use `~` as `TEMPLATE_PLACEHOLDER`, because the HTML/JS templates in `data/`
   use `~VAR~`. Set it with a build flag (`-DTEMPLATE_PLACEHOLDER='~'`), or edit the library header as
   the README says.
-- There are no automated tests; CI only proves the firmware compiles. If you cannot compile in the
-  current environment, **say so plainly** (or push and check CI). Never say a change "works" or
-  "compiles" unless you ran it.
+- Tests: only the plain C++ in `src/` has unit tests (`tests/`, run with
+  `g++ -std=c++17 -Wall -Wextra -Werror -Isrc tests/test_program_step.cpp -o t && ./t`; CI runs them).
+  Logic that can live without Arduino types belongs in `src/` with a test. Everything else is only
+  compiled by CI. If you cannot compile in the current environment, **say so plainly** (or push and
+  check CI). Never say a change "works" or "compiles" unless you ran it.
 - Hardware behaviour (relays, thermocouples, LCD, encoder) can only be checked on a real device. When
   a change needs that, end with a short manual test checklist for the user.
 
@@ -118,7 +123,7 @@ declared type.
 **Program file format** (`data/programs/*.txt`): the first `#` line is the description, then one
 `temp:minutes_to_reach:minutes_dwell` step per line (exactly three numbers, at most `MAX_PRG_LENGTH`
 steps), and `#` starts a comment. `minutes_to_reach` 0 jumps the set point straight to `temp`. The
-parser is `Load_program()`/`add_program_line()` in `PIDKiln_program.ino`. The same checks apply to
+parser is `parse_program_step()` in `src/program_step.h` (unit tested), called from `Load_program()`/`add_program_line()` in `PIDKiln_program.ino`. The same checks apply to
 web upload and LCD load.
 
 **Releasing**: bump `PVer`/`PDate` in `PIDKiln.h`, add a `Changelog.txt` entry, and mention it if the

@@ -208,6 +208,15 @@ Basic auth over plain HTTP, so keep PIDKiln on a network you trust and don't exp
 Internet. The `OTA_Install/` sketch and binaries are outdated (v1.3) and download firmware over plain
 HTTP without any signature check - build from source or use the CI artifacts instead.
 
+## Development
+
+- `CLAUDE.md` is the contributor guide: architecture, the locking rules between tasks, safety rules and
+  recipes (adding a preference, program file format, releasing).
+- The program step parser (`src/program_step.h`) has host unit tests in `tests/`. Run them with
+  `g++ -std=c++17 -Wall -Wextra -Werror -Isrc tests/test_program_step.cpp -o t && ./t`. CI runs them
+  together with the firmware build.
+- `AUDIT.md` is a code review of the firmware and records which branch fixed which finding.
+
 ## Documentation
 
 - Most of the documentation you can find on [PIDKiln github page](https://github.com/Saur0o0n/pidkiln/wiki) - so please use it

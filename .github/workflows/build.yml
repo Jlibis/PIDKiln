@@ -13,6 +13,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Unit tests for the plain C++ parts in src/ (no Arduino needed) - runs on the runner's g++.
+  host-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build and run tests
+        run: |
+          for t in tests/test_*.cpp; do
+            g++ -std=c++17 -Wall -Wextra -Werror -Isrc "$t" -o "${{ runner.temp }}/$(basename "$t" .cpp)"
+            "${{ runner.temp }}/$(basename "$t" .cpp)"
+          done
+
   compile:
     runs-on: ubuntu-latest
     timeout-minutes: 30

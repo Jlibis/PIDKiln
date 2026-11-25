@@ -7,15 +7,6 @@
 // Other variables
 //
 
-// Print local time to serial
-void printLocalTime(){
-struct tm timeinfo;
-  if(!getLocalTime(&timeinfo)){
-    Serial.println("[NET] Failed to obtain time");
-    return;
-  }
-  Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
-}
 
 
 // Set some default time - if there is no NTP

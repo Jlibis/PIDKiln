@@ -19,7 +19,7 @@
 }
 
 .topnav a.active {
-  background-color: #4CAF50;
+  background-color: #2E7D32;   /* was #4CAF50 - white text on it had 2.8:1 contrast, this has 5.1:1 */
   color: white;
 }
 

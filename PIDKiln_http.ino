@@ -892,10 +892,8 @@ static boolean routes_added=false;
   });
 
   server.serveStatic("/index.html", LittleFS, "/index.html").addMiddleware(&Web_auth);
-  server.serveStatic("/index_local.html", LittleFS, "/index_local.html").addMiddleware(&Web_auth);
   
   server.on("/index.html", HTTP_POST, handleIndexPost);
-  server.on("/index_local.html", HTTP_POST, handleIndexPost);
   
   server.on("/js/chart.js", HTTP_GET, [](AsyncWebServerRequest *request){
     if(!_webAuth(request)) return;

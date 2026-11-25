@@ -70,6 +70,12 @@ Unreleased
 - jQuery 3.4.1 (known XSS issues) replaced with 3.7.1, locally and on the CDN; the
   chartjs-plugin-datasource CDN URL is pinned to 0.1.0
 - README and OTA_Install.ino warn that the OTA installer is outdated and unsigned
+- the program step parser and ramp math moved to src/program_step.h, with host unit tests that CI
+  runs (tests/)
+- removed dead code (print_bits, printLocalTime, timerMux, the /index_local.html routes to a file
+  that no longer exists); file sizes in the program/log lists are 32 bit (logs can pass 64 KiB)
+- docs: WiFi mode comment, WiFi_Retry_cnt (tries of about 1.5 s, not seconds), HTTP_Local_JS default
+- web UI accent green darkened for readable white text (contrast 2.8:1 -> 5.1:1)
 
 1.5 (2024.12.18)
 - updated code to compile against ESP3+ API, Arduino 2+ and latest asynce libraries

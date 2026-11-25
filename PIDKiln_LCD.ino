@@ -485,7 +485,7 @@ char msg[MAX_CHARS_PL];
   DBG dbgLog(LOG_DEBUG,"[LCD] Start pos:%d, sel_prg:%d, max_lines:%d\n",start_pos,sel,max_lines);
   
   for(start_pos; start_pos<max_lines && start_pos<Programs_DIR_size; start_pos++){
-    if(Programs_DIR[start_pos].filesize<999) sprintf(msg,"%-15.15s %3db",Programs_DIR[start_pos].filename,Programs_DIR[start_pos].filesize);
+    if(Programs_DIR[start_pos].filesize<999) sprintf(msg,"%-15.15s %3ub",Programs_DIR[start_pos].filename,(unsigned)Programs_DIR[start_pos].filesize);
     else sprintf(msg,"%-15.15s %2dkb",Programs_DIR[start_pos].filename,(int)(Programs_DIR[start_pos].filesize/1024));
     DBG dbgLog(LOG_INFO,"[LCD] Program list:%s: sel:%d\n",msg,Programs_DIR[start_pos].sel);
     if(Programs_DIR[start_pos].sel){

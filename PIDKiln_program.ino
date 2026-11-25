@@ -4,12 +4,12 @@
 */
 #include <PID_v1.h>
 #include <SPI.h>
+#include "src/program_step.h"   // step parser and ramp math - unit tested on the host (tests/)
 
 // Other variables
 //
 hw_timer_t *timer = NULL;
 volatile SemaphoreHandle_t timerSemaphore;
-portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
 
 /*
@@ -21,8 +21,6 @@ portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 //
 void IRAM_ATTR onTimer(){
   // Increment the counter and set the time of ISR
-  //portENTER_CRITICAL_ISR(&timerMux);
-  //portEXIT_CRITICAL_ISR(&timerMux);
   // Give a semaphore that we can check in the loop
   xSemaphoreGiveFromISR(timerSemaphore, NULL);
   // It is safe to use digitalRead/Write here if you want to toggle an output
@@ -33,22 +31,14 @@ void IRAM_ATTR onTimer(){
 // Returns 0 on success, otherwise a PROGRAM_ERROR_STATE value + 1.
 //
 uint8_t add_program_line(String& linia){
-uint32_t prg[3]={0,0,0};
-uint8_t field=0;
-boolean digits=false;
+uint16_t prg[3];
 
   DBG dbgLog(LOG_DEBUG,"[PRG] Sanitizing line: '%s'\n",linia.c_str());
-  for(const char *c=linia.c_str(); *c; c++){
-    if(*c==':'){
-      if(!digits || ++field>2) return PR_ERR_BAD_FORMAT+1;  // empty field or more than three fields
-      digits=false;
-    }else if(*c>='0' && *c<='9'){
-      prg[field]=prg[field]*10+(*c-'0');
-      if(prg[field]>UINT16_MAX) return PR_ERR_BAD_FORMAT+1; // would wrap in the uint16_t step fields
-      digits=true;
-    }else return PR_ERR_BAD_CHAR+1;
+  switch(parse_program_step(linia.c_str(),prg)){
+    case STEP_OK: break;
+    case STEP_BAD_CHAR: return PR_ERR_BAD_CHAR+1;
+    default: return PR_ERR_BAD_FORMAT+1;
   }
-  if(field!=2 || !digits) return PR_ERR_BAD_FORMAT+1;      // fewer than three fields, or the last one is empty
   if(prg[0]>Prefs[PRF_MAX_TEMP].value.uint16) return PR_ERR_TOO_HOT+1;
   if(Program_size>=MAX_PRG_LENGTH) return PR_ERR_TOO_MANY_STEPS+1;
   Program[Program_size].temp=prg[0];
@@ -437,12 +427,12 @@ static boolean is_it_dwell=false;
           temp_incr=0;                             //  (dividing by togo would give inf, or NaN that sticks in the PID)
           set_temp=Program_run[Program_run_step].temp;
         }else if(Program_run_step>0){ // is this a next step?
-          temp_incr=(float)(Program_run[Program_run_step].temp-Program_run[Program_run_step-1].temp)/(Program_run[Program_run_step].togo*60);
+          temp_incr=step_ramp_per_second(Program_run[Program_run_step-1].temp,Program_run[Program_run_step].temp,Program_run[Program_run_step].togo);
           DBG dbgLog(LOG_DEBUG,"[PRG] temp_inc:%f Step_temp:%d Step-1_temp:%d\n",temp_incr,Program_run[Program_run_step].temp,Program_run[Program_run_step-1].temp);
         }else{      // or this is teh first one?
           DBG dbgLog(LOG_DEBUG,"[DBG] First step.\n");
           set_temp=kiln_temp;
-          temp_incr=(float)(Program_run[Program_run_step].temp-kiln_temp)/(Program_run[Program_run_step].togo*60);
+          temp_incr=step_ramp_per_second(kiln_temp,Program_run[Program_run_step].temp,Program_run[Program_run_step].togo);
         }
         Program_recalculate_ETA(false);   // recalculate ETA for normal step
       }else{
