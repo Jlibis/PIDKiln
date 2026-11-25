@@ -254,6 +254,11 @@ const char *LOG_Directory = "/logs";
 #define PREFS_DIRECTORY "/etc"
 #define PREFS_FILE PREFS_DIRECTORY "/pidkiln.conf"
 
+// Factory credentials (web login and own WiFi access point). The preferences page warns while either
+// is still in use; preferences.html never sends passwords back to the browser.
+const char DEFAULT_AP_NAME[]="PIDKiln_AP";
+const char DEFAULT_PASSWORD[]="hotashell";
+
 // Other variables
 //
 typedef enum { // program menu positions
@@ -360,9 +365,9 @@ WiFiUDP udpClient;
 Syslog syslog(udpClient, SYSLOG_PROTO_IETF);
 
 
-#define JS_JQUERY "https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"
+#define JS_JQUERY "https://code.jquery.com/jquery-3.7.1.min.js"
 #define JS_CHART "https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.bundle.min.js"
-#define JS_CHART_DS "https://cdn.jsdelivr.net/npm/chartjs-plugin-datasource"
+#define JS_CHART_DS "https://cdn.jsdelivr.net/npm/chartjs-plugin-datasource@0.1.0/dist/chartjs-plugin-datasource.min.js"
 
 
 /*

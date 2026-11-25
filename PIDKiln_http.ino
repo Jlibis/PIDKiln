@@ -53,7 +53,8 @@ String Preferences_parser(const String& var){
 Recursive_lock state_lock(State_mutex);   // preference strings are freed when changed
 
       if(var=="WiFi_SSID") return html_escape(String(Prefs[PRF_WIFI_SSID].value.str));
- else if(var=="WiFi_Password") return html_escape(String(Prefs[PRF_WIFI_PASS].value.str));
+ else if(var=="WiFi_Password" || var=="WiFi_AP_Pass" || var=="Auth_Password") return String();   // never sent back - empty field = unchanged
+ else if(var=="WiFi_AP_Name") return html_escape(String(Prefs[PRF_WIFI_AP_NAME].value.str));
  else if(var=="WiFi_Mode0" && Prefs[PRF_WIFI_MODE].value.uint8==0) return "checked";
  else if(var=="WiFi_Mode1" && Prefs[PRF_WIFI_MODE].value.uint8==1) return "checked";
  else if(var=="WiFi_Mode2" && Prefs[PRF_WIFI_MODE].value.uint8==2) return "checked";
@@ -64,7 +65,6 @@ Recursive_lock state_lock(State_mutex);   // preference strings are freed when c
  else if(var=="HTTP_Local_JS1" && Prefs[PRF_HTTP_JS_LOCAL].value.uint8==1) return "checked";
  
  else if(var=="Auth_Username") return html_escape(String(Prefs[PRF_AUTH_USER].value.str));
- else if(var=="Auth_Password") return html_escape(String(Prefs[PRF_AUTH_PASS].value.str));
  
  else if(var=="NTP_Server1") return html_escape(String(Prefs[PRF_NTPSERVER1].value.str));
  else if(var=="NTP_Server2") return html_escape(String(Prefs[PRF_NTPSERVER2].value.str));
@@ -99,10 +99,17 @@ Recursive_lock state_lock(State_mutex);   // preference strings are freed when c
  else if(var=="DBG_Syslog_Port") return String(Prefs[PRF_SYSLOG_PORT].value.uint16);
  else if(var=="DBG_Syslog_Srv") return html_escape(String(Prefs[PRF_SYSLOG_SRV].value.str));
 
- else if(var=="ERRORS" && Errors){
-  String out="<div class=error> There where errors: "+String(Errors)+"</div>";
-  DBG dbgLog(LOG_ERR,"[HTTP] Errors pointer1:%p\n",Errors);
-  free(Errors);Errors=NULL;
+ else if(var=="ERRORS"){
+  String out;
+  if(Prefs[PRF_AUTH_PASS].value.str && !strcmp(Prefs[PRF_AUTH_PASS].value.str,DEFAULT_PASSWORD))
+    out+="<div class=error> The web login still uses the factory password - anyone who knows PIDKiln can control your kiln. Set a new Auth Password and save.</div>";
+  if(Prefs[PRF_WIFI_MODE].value.uint8 && Prefs[PRF_WIFI_MODE].value.uint8!=2 && Prefs[PRF_WIFI_AP_PASS].value.str && !strcmp(Prefs[PRF_WIFI_AP_PASS].value.str,DEFAULT_PASSWORD))
+    out+="<div class=error> The PIDKiln access point uses the factory WiFi password. Set a new WiFi AP password.</div>";
+  if(Errors){
+    out+="<div class=error> There where errors: "+String(Errors)+"</div>";
+    DBG dbgLog(LOG_ERR,"[HTTP] Errors pointer1:%p\n",Errors);
+    free(Errors);Errors=NULL;
+  }
   return out;
  }
  return String();
@@ -605,6 +612,8 @@ boolean save=false;
         continue;
       }else if(p->name().equalsIgnoreCase("update")){
         continue;
+      }else if(!p->value().length() && (p->name()=="WiFi_Password" || p->name()=="WiFi_AP_Pass" || p->name()=="Auth_Password")){
+        continue;   // the page never shows stored passwords, so an empty field means "keep the current one"
       }else if(!Change_prefs_value(p->name(),p->value())){
         DBG dbgLog(LOG_DEBUG,"[HTTP]!!! We have post error for %s with '%s'\n",p->name().c_str(),p->value().c_str());
         // we have some errors add new field to error list
@@ -895,8 +904,8 @@ static boolean routes_added=false;
 
 
   if(Prefs[PRF_HTTP_JS_LOCAL].value.uint8){   // UINT8 pref - reading .str only worked because the rest of the union was 0
-    server.on("/js/jquery-3.4.1.js", HTTP_GET, [](AsyncWebServerRequest* request) {
-      AsyncWebServerResponse* response = request->beginResponse(LittleFS, "/js/jquery-3.4.1.js", "text/javascript");
+    server.on("/js/jquery-3.7.1.min.js", HTTP_GET, [](AsyncWebServerRequest* request) {
+      AsyncWebServerResponse* response = request->beginResponse(LittleFS, "/js/jquery-3.7.1.min.js", "text/javascript");
       response->addHeader("Content-Encoding", "gzip");
       request->send(response);
     });
@@ -911,7 +920,7 @@ static boolean routes_added=false;
       request->send(response);
     });
   }else{
-    server.on("/js/jquery-3.4.1.js", HTTP_GET, [](AsyncWebServerRequest* request) {
+    server.on("/js/jquery-3.7.1.min.js", HTTP_GET, [](AsyncWebServerRequest* request) {
       request->redirect(JS_JQUERY);
     });
     server.on("/js/Chart.2.9.3.bundle.min.js", HTTP_GET, [](AsyncWebServerRequest* request) {

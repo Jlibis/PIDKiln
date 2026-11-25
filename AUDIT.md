@@ -21,8 +21,9 @@ all compile in CI, none is hardware-tested yet):
 | `fix/watchdogs-and-safety-cadence` | F2, F3, F5, F6 error codes (the grace counter is unchanged: it tolerates sporadic errors by design, and the last good temperature is used for at most `MAX31855_Error_Grace_Count` reads) |
 | `fix/correctness-m7-m12` | M7, M8, M9, M10, M11 (handlers registered once; static pages use an auth middleware that follows login changes), M12 |
 | `fix/concurrency` | C1 (State_mutex / FS_mutex, lock order State→FS; PID+SSR switching under the lock), C2 (only Input_Loop draws), C3, C4 (index generation locked, `template_str` local), syslog pointer |
+| `fix/security-leftovers` | S7 (passwords not sent back, factory-password warning, configurable AP name/password; plain HTTP documented), S8 (documented as outdated and unsafe - not rewritten), S9 |
 
-Still open: S7–S9, and the rest of sections 5–6. Also noticed:
+Still open: plain HTTP (no TLS) and the rest of sections 5–6. Also noticed:
 `DIRECTORY.filesize` is `uint16_t`, so log files over 64 KiB show a wrong size.
 
 ## Verdict

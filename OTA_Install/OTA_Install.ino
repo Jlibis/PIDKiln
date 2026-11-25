@@ -3,6 +3,11 @@
 **
 ** based on: httpUpdateSPIFFS.ino
 ** Created on: 05.12.2015
+**
+** WARNING - outdated and unsafe: it installs PIDKiln v1.3 (SPIFFS, not the current LittleFS firmware)
+** and downloads both images over plain HTTP from a personal server, with no signature or hash check -
+** anyone on the network path can replace them. Build from source or use the CI artifacts instead
+** (see README "Installation").
 */
 
 

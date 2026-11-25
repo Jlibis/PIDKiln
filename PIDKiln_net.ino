@@ -3,8 +3,6 @@
 **
 */
 
-#define DEFAULT_AP "PIDKiln_AP"
-#define DEFAULT_PASS "hotashell"
 
 // Other variables
 //
@@ -82,8 +80,16 @@ boolean Start_WiFi_AP(){
 
   WiFi.softAPConfig(local_IP, gateway, subnet);
   
-  DBG dbgLog(LOG_INFO,"[NET] Creating WiFi Access Point (AP)");
-  WiFi.softAP(DEFAULT_AP, DEFAULT_PASS, 8);
+  // Name and password come from the preferences now (they were hard-coded). WPA2 needs 8-63 characters.
+  const char *ap_name=Prefs[PRF_WIFI_AP_NAME].value.str;
+  const char *ap_pass=Prefs[PRF_WIFI_AP_PASS].value.str;
+  if(!ap_name || !strlen(ap_name)) ap_name=DEFAULT_AP_NAME;
+  if(!ap_pass || strlen(ap_pass)<8 || strlen(ap_pass)>63){
+    DBG dbgLog(LOG_ERR,"[NET] WiFi_AP_Pass must have 8-63 characters - using the default password\n");
+    ap_pass=DEFAULT_PASSWORD;
+  }
+  DBG dbgLog(LOG_INFO,"[NET] Creating WiFi Access Point (AP) %s\n",ap_name);
+  WiFi.softAP(ap_name, ap_pass, 8);
   return 0;
 }
 

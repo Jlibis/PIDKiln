@@ -63,6 +63,13 @@ Unreleased
   no longer pulls you out of menus every 10 s during a run
 - energy is read only by the power meter task (it was also read by the program loop, counted twice)
 - the syslog server name is copied (it pointed at a preference string that is freed on change)
+- security: the preferences page no longer sends stored passwords to the browser (an empty field
+  keeps the current one), and warns while the factory web or access point password is in use
+- the own access point name and password are configurable (WiFi_AP_Name, WiFi_AP_Pass); they were
+  hard-coded
+- jQuery 3.4.1 (known XSS issues) replaced with 3.7.1, locally and on the CDN; the
+  chartjs-plugin-datasource CDN URL is pinned to 0.1.0
+- README and OTA_Install.ino warn that the OTA installer is outdated and unsigned
 
 1.5 (2024.12.18)
 - updated code to compile against ESP3+ API, Arduino 2+ and latest asynce libraries

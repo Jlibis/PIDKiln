@@ -43,7 +43,7 @@
       </div>
       <div class="col-75">
        <div style="display: inline-block;">
-	<input type="password" id="WiFi_Password" name="WiFi_Password" value="~WiFi_Password~" width="20" title="Password for WiFi network">
+	<input type="password" id="WiFi_Password" name="WiFi_Password" value="" placeholder="unchanged" autocomplete="new-password" width="20" title="Password for WiFi network. Leave empty to keep the current one">
 	<img id="WiFi_Password_toggler" class="field-icon toggle-password" src="icons/eyec.png" onclick="toggle_password(WiFi_Password)">
        </div>
       </div>
@@ -67,6 +67,25 @@
 	<input type="number" name="WiFi_Retry_cnt" value="~WiFi_Retry_cnt~" min="0" max="254" title="How many times retry connecting to WiFi (once per second)"> seconds
       </div>
      </div>
+     <div class="row">
+      <div class="col-25">
+	<label for="WiFi_AP_Name"> Own access point name </label>
+      </div>
+      <div class="col-75">
+	<input type="text" name="WiFi_AP_Name" value="~WiFi_AP_Name~" maxlength="32" width="20" title="WiFi name of the access point PIDKiln creates in modes 1 and 3 (change requires restart)">
+      </div>
+     </div>
+     <div class="row">
+      <div class="col-25">
+	<label for="WiFi_AP_Pass"> Own access point password </label>
+      </div>
+      <div class="col-75">
+       <div style="display: inline-block;">
+	<input type="password" id="WiFi_AP_Pass" name="WiFi_AP_Pass" value="" placeholder="unchanged" autocomplete="new-password" minlength="8" maxlength="63" width="20" title="8-63 characters. Leave empty to keep the current one (change requires restart)">
+	<img id="WiFi_AP_Pass_toggler" class="field-icon toggle-password" src="icons/eyec.png" onclick="toggle_password(WiFi_AP_Pass)">
+       </div>
+      </div>
+     </div>
    </fieldset>
 
    <fieldset>
@@ -85,7 +104,7 @@
       </div>
       <div class="col-75">
        <div style="display: inline-block;">
-	<input type="password" id="Auth_Password" name="Auth_Password" value="~Auth_Password~" width="20">
+	<input type="password" id="Auth_Password" name="Auth_Password" value="" placeholder="unchanged" autocomplete="new-password" width="20" title="Leave empty to keep the current password">
 	<img id="Auth_Password_toggler" class="field-icon toggle-password" src="icons/eyec.png" onclick="toggle_password(Auth_Password)" title="Password used with above username">
        </div>
       </div>

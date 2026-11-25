@@ -157,6 +157,14 @@ char tmp[30];
         Prefs[PRF_WIFI_RETRY_CNT].type=UINT8;
         Prefs[PRF_WIFI_RETRY_CNT].value.uint8=6;
         break;
+      case PRF_WIFI_AP_NAME:    // own access point (WiFi modes 1 and 3). WiFi_AP_Username stays unused (WPA2-PSK has none)
+        Prefs[PRF_WIFI_AP_NAME].type=STRING;
+        Prefs[PRF_WIFI_AP_NAME].value.str=strdup(DEFAULT_AP_NAME);
+        break;
+      case PRF_WIFI_AP_PASS:
+        Prefs[PRF_WIFI_AP_PASS].type=STRING;
+        Prefs[PRF_WIFI_AP_PASS].value.str=strdup(DEFAULT_PASSWORD);
+        break;
 
       case PRF_HTTP_JS_LOCAL:
         Prefs[PRF_HTTP_JS_LOCAL].type=UINT8;
@@ -169,7 +177,7 @@ char tmp[30];
         break;
       case PRF_AUTH_PASS:
         Prefs[PRF_AUTH_PASS].type=STRING;
-        Prefs[PRF_AUTH_PASS].value.str=strdup("hotashell");
+        Prefs[PRF_AUTH_PASS].value.str=strdup(DEFAULT_PASSWORD);
         break;
 
       case PRF_NTPSERVER1:

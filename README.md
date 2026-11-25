@@ -201,6 +201,13 @@ old SPIFFS partition. The first boot of the new firmware formats it, so **downlo
 browser - it shows a built-in upload page because the web interface files are gone - and upload
 `PIDKiln.littlefs.bin`. Restore your programs and settings afterwards.
 
+**Security.** The factory web login is `admin` / `hotashell`, and the access point PIDKiln creates
+when it can't join your WiFi (`PIDKiln_AP`, 192.168.10.1) uses `hotashell` as well. Change both in
+the preferences - the page warns while either is still the default. The web interface uses HTTP
+Basic auth over plain HTTP, so keep PIDKiln on a network you trust and don't expose it to the
+Internet. The `OTA_Install/` sketch and binaries are outdated (v1.3) and download firmware over plain
+HTTP without any signature check - build from source or use the CI artifacts instead.
+
 ## Documentation
 
 - Most of the documentation you can find on [PIDKiln github page](https://github.com/Saur0o0n/pidkiln/wiki) - so please use it
