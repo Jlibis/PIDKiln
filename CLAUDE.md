@@ -16,6 +16,7 @@ commits so they can still be compared with or sent upstream.
 | `PIDKiln_<module>.ino` | One subsystem per file: `program` (PID + program runner), `addons` (relays, thermocouples, power meter, alarm), `http`, `LCD`, `input`, `net`, `prefs`, `logs` |
 | `src/` | Plain C++ headers without Arduino dependencies (program step parser, ramp math) - host-testable |
 | `tests/` | Host unit tests for `src/` (`g++`, run by CI) |
+| `sim/` | Wokwi simulation: `diagram.json`, `wokwi.toml`, the MAX31855/kiln custom chip, `build.sh`. Firmware built with `-DPIDKILN_SIM` (SSD1306 instead of ST7920, joins Wokwi-GUEST) |
 | `libraries/` | Git submodules: the MAX31855 fork and Syslog |
 | `data/` | LittleFS image: web UI, `etc/pidkiln.conf` (default config), sample programs |
 | `OTA_Install/` | Separate installer sketch, plus prebuilt binaries (these can lag behind the source) |

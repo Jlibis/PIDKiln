@@ -9,3 +9,7 @@ Thumbs.db
 
 # Local Claude Code settings
 .claude/settings.local.json
+
+# Wokwi simulation build output and the API header wokwi-cli downloads
+sim/build/
+sim/chips/wokwi-api.h

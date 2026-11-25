@@ -27,7 +27,13 @@
 
 // You can switch hardware or software SPI interface to LCD. HW can be up to x10 faster - but requires special pins (and has some errors for me on 5V).
 //U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R2, /* clock=*/ LCD_CLOCK, /* data=*/ LCD_DATA, /* CS=*/ LCD_CS, /* reset=*/ LCD_RESET);
+#ifdef PIDKILN_SIM
+// Wokwi simulation (sim/): Wokwi has no ST7920, so use its SSD1306 - also 128x64, the screens look the
+// same. I2C on the LCD clock/data pins, upright instead of the real LCD's 180 degree mounting.
+U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ LCD_CLOCK, /* data=*/ LCD_DATA);
+#else
 U8G2_ST7920_128X64_F_HW_SPI u8g2(U8G2_R2, /* CS=*/ LCD_CS, /* reset=*/ LCD_RESET);
+#endif
 
 
 /*
@@ -1035,7 +1041,11 @@ void LCD_Reconect_WiFi(){
 void Setup_LCD(void) {
   
   u8g2.begin();
+#ifdef PIDKILN_SIM
+  u8g2.setBusClock(400000);   // I2C fast mode
+#else
   u8g2.setBusClock(900000);   // without lowering the clock (default 1Mhz) LCD gets some glitches
+#endif
   
   u8g2.clearBuffer();         // clear the internal memory
   u8g2.setFont(FONT8);

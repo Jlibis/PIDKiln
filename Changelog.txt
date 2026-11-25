@@ -76,6 +76,9 @@ Unreleased
   that no longer exists); file sizes in the program/log lists are 32 bit (logs can pass 64 KiB)
 - docs: WiFi mode comment, WiFi_Retry_cnt (tries of about 1.5 s, not seconds), HTTP_Local_JS default
 - web UI accent green darkened for readable white text (contrast 2.8:1 -> 5.1:1)
+- Wokwi simulation (sim/): the firmware with -DPIDKILN_SIM on a simulated ESP32 with an SSD1306
+  display, encoder, LEDs for the relays and a MAX31855 custom chip with a kiln model and fault
+  injection; CI builds the simulation files (artifact PIDKiln-sim)
 
 1.5 (2024.12.18)
 - updated code to compile against ESP3+ API, Arduino 2+ and latest asynce libraries

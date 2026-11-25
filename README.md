@@ -216,6 +216,8 @@ HTTP without any signature check - build from source or use the CI artifacts ins
   `g++ -std=c++17 -Wall -Wextra -Werror -Isrc tests/test_program_step.cpp -o t && ./t`. CI runs them
   together with the firmware build.
 - `AUDIT.md` is a code review of the firmware and records which branch fixed which finding.
+- `sim/` runs the firmware in the [Wokwi](https://wokwi.com) simulator: LCD (as an SSD1306), encoder,
+  web interface and a simulated kiln with fault injection. See [sim/README.md](sim/README.md).
 
 ## Documentation
 

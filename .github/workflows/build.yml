@@ -79,3 +79,69 @@ jobs:
           path: build/*.bin
           if-no-files-found: error
           retention-days: 30
+
+  # Wokwi simulation build (sim/): firmware with -DPIDKILN_SIM, full flash image with the data
+  # partition, and the MAX31855/kiln custom chip. Download the "PIDKiln-sim" artifact into sim/build/.
+  sim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      WOKWI_CLI_VERSION: 0.29.1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+          persist-credentials: false
+
+      - uses: arduino/setup-arduino-cli@b3cda96fddef6af6c56b4c5efb5c47e2357935db # v2.1.0
+        with:
+          version: 1.6.0
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.arduino15
+            ~/Arduino
+          key: arduino-${{ runner.os }}-${{ hashFiles('sketch.yaml') }}
+
+      - name: Install wokwi-cli
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -sSfL -o "$HOME/.local/bin/wokwi-cli" \
+            "https://github.com/wokwi/wokwi-cli/releases/download/v${WOKWI_CLI_VERSION}/wokwi-cli-linuxstatic-x64"
+          chmod +x "$HOME/.local/bin/wokwi-cli"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build simulation files
+        run: SIM_BUILD_WORK="${{ runner.temp }}/sim-work" bash sim/build.sh
+
+      - name: Lint diagram
+        run: wokwi-cli lint sim
+
+      # Runs only when the repository has a WOKWI_CLI_TOKEN secret (wokwi.com/dashboard/ci).
+      # Boots the firmware for 20 s of simulated time and saves the display.
+      - name: Smoke test in Wokwi
+        env:
+          WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
+        if: env.WOKWI_CLI_TOKEN != ''
+        run: >
+          wokwi-cli sim
+          --timeout 20000
+          --expect-text "Simulation build"
+          --fail-text "Guru Meditation"
+          --screenshot-part oled1 --screenshot-time 19000 --screenshot-file sim/build/display.png
+          --serial-log-file sim/build/serial.log
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: PIDKiln-sim
+          path: |
+            sim/build/PIDKiln.sim.flash.bin
+            sim/build/PIDKiln.ino.elf
+            sim/build/max31855.chip.wasm
+            sim/build/max31855.chip.json
+            sim/build/display.png
+            sim/build/serial.log
+          if-no-files-found: warn
+          retention-days: 30

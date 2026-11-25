@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "author": "PIDKiln",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": { "psramSize": "4" } },
+    { "type": "board-ssd1306", "id": "oled1", "top": -150, "left": -20, "attrs": {} },
+    { "type": "wokwi-ky-040", "id": "encoder1", "top": -160, "left": 170, "attrs": {} },
+    { "type": "chip-max31855", "id": "kiln", "top": 40, "left": 260, "attrs": { "mode": "0", "heatRate": "20" } },
+    { "type": "chip-max31855", "id": "housing", "top": 170, "left": 260, "attrs": { "mode": "1", "temperature": "25" } },
+    { "type": "wokwi-led", "id": "led_ssr", "top": 260, "left": 40, "attrs": { "color": "red", "label": "SSR" } },
+    { "type": "wokwi-led", "id": "led_emr", "top": 260, "left": 90, "attrs": { "color": "yellow", "label": "EMR" } },
+    { "type": "wokwi-led", "id": "led_alarm", "top": 260, "left": 140, "attrs": { "color": "orange", "label": "ALARM" } }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+
+    [ "oled1:SDA", "esp:23", "blue", [] ],
+    [ "oled1:SCL", "esp:18", "green", [] ],
+    [ "oled1:VCC", "esp:3V3", "red", [] ],
+    [ "oled1:GND", "esp:GND.1", "black", [] ],
+
+    [ "encoder1:CLK", "esp:34", "green", [] ],
+    [ "encoder1:DT", "esp:35", "blue", [] ],
+    [ "encoder1:SW", "esp:32", "violet", [] ],
+    [ "encoder1:VCC", "esp:3V3", "red", [] ],
+    [ "encoder1:GND", "esp:GND.1", "black", [] ],
+
+    [ "kiln:CS", "esp:27", "orange", [] ],
+    [ "kiln:SCK", "esp:14", "gray", [] ],
+    [ "kiln:SO", "esp:12", "purple", [] ],
+    [ "kiln:HEAT", "esp:19", "red", [] ],
+    [ "kiln:EMR", "esp:21", "yellow", [] ],
+    [ "kiln:VCC", "esp:3V3", "red", [] ],
+    [ "kiln:GND", "esp:GND.2", "black", [] ],
+
+    [ "housing:CS", "esp:15", "orange", [] ],
+    [ "housing:SCK", "esp:14", "gray", [] ],
+    [ "housing:SO", "esp:12", "purple", [] ],
+    [ "housing:VCC", "esp:3V3", "red", [] ],
+    [ "housing:GND", "esp:GND.2", "black", [] ],
+
+    [ "led_ssr:A", "esp:19", "red", [] ],
+    [ "led_ssr:C", "esp:GND.3", "black", [] ],
+    [ "led_emr:A", "esp:21", "yellow", [] ],
+    [ "led_emr:C", "esp:GND.3", "black", [] ],
+    [ "led_alarm:A", "esp:26", "orange", [] ],
+    [ "led_alarm:C", "esp:GND.3", "black", [] ]
+  ]
+}

@@ -153,7 +153,14 @@ void setup() {
 
   // Load all preferences from disk
   Load_prefs();
-  
+#ifdef PIDKILN_SIM
+  // Wokwi simulation (sim/): join Wokwi's open guest network as a client (not saved to the config)
+  Change_prefs_value("WiFi_SSID","Wokwi-GUEST");
+  Change_prefs_value("WiFi_Password","");
+  Change_prefs_value("WiFi_Mode","2");
+  DBG dbgLog(LOG_INFO,"[MAIN] Simulation build (PIDKILN_SIM)\n");
+#endif
+
   // Setup function for LCD display from PIDKiln_LCD.ino
   Setup_LCD();
 

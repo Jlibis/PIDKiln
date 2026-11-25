@@ -1,0 +1,15 @@
+# Wokwi simulation of PIDKiln - see sim/README.md. Build the files in build/ with sim/build.sh, or
+# download them from the CI artifact "PIDKiln-sim".
+[wokwi]
+version = 1
+firmware = 'build/PIDKiln.sim.flash.bin'   # full 4 MB flash image: bootloader, partitions, app, LittleFS data
+elf = 'build/PIDKiln.ino.elf'
+
+[[chip]]
+name = 'max31855'                          # diagram.json parts "chip-max31855"
+binary = 'build/max31855.chip.wasm'        # build/max31855.chip.json must sit next to it
+
+# Web interface at http://localhost:8180 while the simulation runs (VS Code extension)
+[[net.forward]]
+from = "localhost:8180"
+to = "target:80"
