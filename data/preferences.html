@@ -258,6 +258,14 @@
      </div>
      <div class="row">
       <div class="col-25">
+	<label for="Thermal_Runaway"> Heating stall timeout </label>
+      </div>
+      <div class="col-75">
+	<input type="number" name="Thermal_Runaway" min="0" max="600" value="~Thermal_Runaway~" size="4" title="Abort if the kiln does not warm up by 5&#176;C within this many minutes while the set point is 5&#176;C or more above it. 0 = off">min
+      </div>
+     </div>
+     <div class="row">
+      <div class="col-25">
 	<label for="Alarm_Timeout"> Alarm timeout </label>
       </div>
       <div class="col-75">

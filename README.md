@@ -8,7 +8,7 @@ PIDKiln is PID temperature controller, for any task involving high temperatures 
 - Local preferences on disk, editable with Web interface
 - Online monitoring, program management, editing, graphs and kiln control
 - Build in clock synchronised with NTP servers (if Internet connected)
-- Safety features build in (temperature run out protection, probe failure, SSR failure, kiln insulation failure)
+- Safety features built in: min/max kiln temperature, housing temperature (kiln insulation failure), thermocouple failure, heating stall (Thermal_Runaway, off by default) and stuck SSR detection; an optional EMR relay cuts power when the SSR fails closed
 - Online PIDKiln firmware upgrade with web interface
 - Syslog type, over the network (UDP) logging to remote server
 - ...simply cool and cheap (comparing to commercially available products) all in one solution
@@ -141,7 +141,7 @@ GND   | GND
 
 **Alarm**
 
-This ALARM_PIN goes HIGH when program ABORT is called (somethings wrong, or user triggered). You can connect this pin to buzzer or small relay to trigger some other action on failure.
+This ALARM_PIN goes HIGH for `Alarm_Timeout` seconds (0 = alarm off, which is the default) when a program aborts (something is wrong, or user triggered), and when PIDKiln detects a stuck SSR while no program runs. You can connect this pin to buzzer or small relay to trigger some other action on failure.
 
 ESP   | Relay/Buzzer
 ------|-------------

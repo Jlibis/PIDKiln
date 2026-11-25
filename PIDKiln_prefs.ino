@@ -244,7 +244,7 @@ char tmp[30];
         break;
       case PRF_THERMAL_RUN:
         Prefs[PRF_THERMAL_RUN].type=UINT16;
-        Prefs[PRF_THERMAL_RUN].value.uint16=130;
+        Prefs[PRF_THERMAL_RUN].value.uint16=0;   // minutes, 0 = off (as documented in pidkiln.conf)
         break;
       case PRF_ALARM_TIMEOUT:
         Prefs[PRF_ALARM_TIMEOUT].type=UINT16;

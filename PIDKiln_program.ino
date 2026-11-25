@@ -499,6 +499,59 @@ void SAFETY_Check(){
 }
 
 
+// Heater checks - called every second, right after the kiln temperature readout.
+// - Heating stall (Thermal_Runaway minutes, 0 = off): while a program is active and the set point is
+//   HEATING_STALL_DELTA or more above the kiln, the kiln must gain HEATING_STALL_DELTA within the window.
+//   Catches a dead element or relay, or a thermocouple that is no longer in the kiln.
+// - Stuck SSR: once the heater has been used, the kiln must not warm up by SSR_STUCK_DELTA above its
+//   lowest temperature since the SSR was last commanded on. With a program active this aborts, which
+//   opens the EMR. Without one, only the alarm and the log can tell anyone.
+// Uses millis(), not time(): an NTP sync during a firing would make the wall clock jump.
+//
+void Heater_safety_check(){
+static uint32_t stall_start=0;
+static double stall_ref=0, off_low=0;
+static boolean stall_running=false, heater_used=false, off_tracking=false, stuck_reported=false;
+uint32_t now=millis();
+uint16_t stall_minutes=Prefs[PRF_THERMAL_RUN].value.uint16;
+
+  // Heating stall
+  if(Program_is_active() && stall_minutes && set_temp>=kiln_temp+HEATING_STALL_DELTA){
+    if(!stall_running || kiln_temp>=stall_ref+HEATING_STALL_DELTA){   // start a new window - or the kiln warms up as it should
+      stall_running=true;
+      stall_start=now;
+      stall_ref=kiln_temp;
+    }else if(now-stall_start>=(uint32_t)stall_minutes*60000){
+      DBG dbgLog(LOG_ERR,"[PRG] Safety check failed - kiln did not gain %.0fC in %d minutes (%.1fC -> %.1fC, set point %.1fC)\n",HEATING_STALL_DELTA,stall_minutes,stall_ref,kiln_temp,set_temp);
+      stall_running=false;
+      ABORT_Program(PR_ERR_HEATING_STALL);
+    }
+  }else stall_running=false;
+
+  // Stuck SSR. pid_out is clamped to 0 at the bottom, and then the SSR stays off for the whole window
+  if(Program_is_active() && pid_out>0){
+    heater_used=true;
+    off_tracking=false;
+    stuck_reported=false;
+  }else if(heater_used){
+    if(!off_tracking || kiln_temp<off_low){   // lowest temperature since the SSR was last commanded on
+      off_low=kiln_temp;
+      off_tracking=true;
+    }
+    if(!stuck_reported && kiln_temp>=off_low+SSR_STUCK_DELTA){
+      stuck_reported=true;
+      DBG dbgLog(LOG_ERR,"[PRG] Safety check failed - kiln warmed from %.1fC to %.1fC with the SSR switched off. Stuck SSR?\n",off_low,kiln_temp);
+      if(Program_is_active()) ABORT_Program(PR_ERR_SSR_STUCK);
+      else{
+        Disable_SSR();
+        Disable_EMR();
+        START_Alarm();
+      }
+    }
+  }
+}
+
+
 // Function that create task to handle program running
 //
 void Program_Loop(void * parameter){
@@ -515,6 +568,7 @@ uint32_t now;
 
       // Update temperature readout
       Update_TemperatureA();
+      Heater_safety_check();
 
       // Restart requested by a finished firmware update (web handlers must not block or restart)
       if(shouldReboot && !Program_is_active()) Restart_ESP();

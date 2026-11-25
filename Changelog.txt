@@ -32,6 +32,11 @@ Unreleased
   programs/logs directories (such files are now skipped); fixed reading out of bounds when the
   program list is empty (the LCD now says "No programs found")
 - fixed undefined behaviour in debug logging of messages longer than their format string
+- safety: Thermal_Runaway is implemented (it was documented but never used): abort with error 16 if
+  the kiln does not gain 5C within that many minutes while the set point is 5C+ above it. Still off
+  by default (0); the code default was 130, now 0 like pidkiln.conf; added to the preferences page
+- safety: stuck SSR detection - if the kiln warms up by 25C while the SSR is commanded off, a running
+  program aborts with error 17 (opens the EMR); without a running program the alarm is switched on
 
 1.5 (2024.12.18)
 - updated code to compile against ESP3+ API, Arduino 2+ and latest asynce libraries

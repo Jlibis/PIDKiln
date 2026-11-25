@@ -167,8 +167,16 @@ typedef enum {
   PR_ERR_BAD_FORMAT,      // step is not temp:minutes:minutes, has an empty field or a value above 65535, or the program has no steps
   PR_ERR_TOO_MANY_STEPS,  // program has more than MAX_PRG_LENGTH steps
   PR_ERR_BAD_VALUE,       // temperature, set point or PID output became NaN or infinite while running
+  PR_ERR_HEATING_STALL,   // Thermal_Runaway: kiln did not warm up although the set point was above it
+  PR_ERR_SSR_STUCK,       // kiln kept heating while the SSR was commanded off
   PR_ERR_end
 } PROGRAM_ERROR_STATE;
+
+// Heater checks (Heater_safety_check() in PIDKiln_program.ino). Both depend on the kiln, so they
+// err on the side of no false alarms - the MAX_Temperature check stays the last line of defence.
+constexpr double HEATING_STALL_DELTA=5;   // Thermal_Runaway: set point this far above the kiln starts the window, the kiln must gain this much within it
+constexpr double SSR_STUCK_DELTA=25;      // kiln warming by this much above its lowest temperature since the SSR was commanded off = stuck SSR
+                                          //  (leaves room for heat still soaking in from the elements after switching off)
 
 /*
 ** Filesystem definintions
