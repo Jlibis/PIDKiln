@@ -29,7 +29,6 @@
 #include <FS.h>
 #include <LittleFS.h>
 #include <ESPAsyncWebServer.h>
-#include <rtc_wdt.h>
 #include <esp_task_wdt.h>
 
 #include "PIDKiln.h"
@@ -127,18 +126,17 @@ boolean Setup_FS(){
 void setup() {
   char msg[MAX_CHARS_PL];
 
-// This should disable watchdog killing asynctcp and others - one of this should work :)
-// This is not recommended, but if Webserver/AsyncTCP will hang (that has happen to me) - this will at least do not reset the device (and potentially ruin program).
-// ESP32 will continue to work properly even in AsynTCP will hang - there will be no HTTP connection. If you do not like this - comment out next 6 lines.
+// Task watchdog. Program_Loop subscribes itself (it drives the SSR): if it hangs for WDT_TIMEOUT_MS
+// the ESP32 restarts, which switches both relays off. AsyncTCP subscribes its own task too.
+// The idle tasks are not watched - a busy task starves only lower priority tasks, and a starved
+// Program_Loop trips its own subscription. The watchdogs used to be disabled completely, most likely
+// because Input_Loop busy-looped with yield() and starved IDLE0 (fixed: it uses vTaskDelay now).
   esp_task_wdt_config_t config = {
-    .timeout_ms = 60* 1000,  //  60 seconds
-    .trigger_panic = true,     // Trigger panic if watchdog timer is not reset
+    .timeout_ms = WDT_TIMEOUT_MS,
+    .idle_core_mask = 0,
+    .trigger_panic = true,     // restart instead of only printing a warning
   };
   esp_task_wdt_reconfigure(&config);
-  rtc_wdt_protect_off();
-  rtc_wdt_disable();
-  disableCore0WDT();
-  disableCore1WDT();
 
   // Initialize prefs array with default values
   Setup_prefs();

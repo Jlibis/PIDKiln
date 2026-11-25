@@ -37,6 +37,13 @@ Unreleased
   by default (0); the code default was 130, now 0 like pidkiln.conf; added to the preferences page
 - safety: stuck SSR detection - if the kiln warms up by 25C while the SSR is commanded off, a running
   program aborts with error 17 (opens the EMR); without a running program the alarm is switched on
+- safety: task watchdog enabled again (15 s) for the program loop - a hang now restarts the ESP32,
+  which switches the relays off; relays and alarm are driven off explicitly at boot. The input loop
+  no longer busy-loops (it starved the idle task, the likely reason the watchdogs were disabled)
+- safety: temperature limits are checked every second instead of every 10 s, and the MAX and
+  housing limits also without a running program (relays off, alarm on)
+- MIN_Temperature can be negative
+- thermocouple faults abort with the K-probe error codes (8/11) instead of the internal-sensor ones
 
 1.5 (2024.12.18)
 - updated code to compile against ESP3+ API, Arduino 2+ and latest asynce libraries

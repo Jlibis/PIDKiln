@@ -141,7 +141,7 @@ GND   | GND
 
 **Alarm**
 
-This ALARM_PIN goes HIGH for `Alarm_Timeout` seconds (0 = alarm off, which is the default) when a program aborts (something is wrong, or user triggered), and when PIDKiln detects a stuck SSR while no program runs. You can connect this pin to buzzer or small relay to trigger some other action on failure.
+This ALARM_PIN goes HIGH for `Alarm_Timeout` seconds (0 = alarm off, which is the default) when a program aborts (something is wrong, or user triggered), and - while no program runs - when the kiln or the housing gets hotter than its limit or PIDKiln detects a stuck SSR. You can connect this pin to buzzer or small relay to trigger some other action on failure.
 
 ESP   | Relay/Buzzer
 ------|-------------

@@ -482,19 +482,32 @@ void START_Program(){
 }
 
 
-// Check all possible safety measures - if something is wrong - abort
+// Check the temperature limits - called every second, with or without a program.
+// With a program active, a failed check aborts it. Without one the heater should already be off, so
+// over-temperature means a stuck relay or a heat source PIDKiln doesn't control: switch both relays
+// off (again), raise the alarm and log - once, until the temperatures are back in range.
 //
 void SAFETY_Check(){
-  if(kiln_temp<Prefs[PRF_MIN_TEMP].value.uint8){
-    DBG dbgLog(LOG_ERR,"[PRG] Safety check failed - MIN temperature < %d\n",Prefs[PRF_MIN_TEMP].value.uint8);
-    ABORT_Program(PR_ERR_TOO_COLD);
-  }else if(kiln_temp>Prefs[PRF_MAX_TEMP].value.uint16){
-    DBG dbgLog(LOG_ERR,"[PRG] Safety check failed - MAX temperature > %d\n",Prefs[PRF_MAX_TEMP].value.uint16);
-    ABORT_Program(PR_ERR_TOO_HOT);  
+static boolean idle_alarm=false;
+uint8_t err=PR_ERR_end;   // = no error
+
+  if(kiln_temp>Prefs[PRF_MAX_TEMP].value.uint16) err=PR_ERR_TOO_HOT;
+  else if(case_temp>Prefs[PRF_MAX_HOUSING_TEMP].value.uint16) err=PR_ERR_TOO_HOT_HOUSING;
+  else if(Program_is_active() && kiln_temp<Prefs[PRF_MIN_TEMP].value.int16) err=PR_ERR_TOO_COLD;
+
+  if(err==PR_ERR_end){
+    idle_alarm=false;
+    return;
   }
-  if(case_temp>Prefs[PRF_MAX_HOUSING_TEMP].value.uint16){
-    DBG dbgLog(LOG_ERR,"[PRG] Safety check failed - MAX housing temperature > %d\n",Prefs[PRF_MAX_HOUSING_TEMP].value.uint16);
-    ABORT_Program(PR_ERR_TOO_HOT_HOUSING);
+  if(Program_is_active()){
+    DBG dbgLog(LOG_ERR,"[PRG] Safety check failed - error %d (kiln %.1fC, housing %.1fC, limits %d..%dC, housing %dC)\n",err,kiln_temp,case_temp,(int)Prefs[PRF_MIN_TEMP].value.int16,Prefs[PRF_MAX_TEMP].value.uint16,Prefs[PRF_MAX_HOUSING_TEMP].value.uint16);
+    ABORT_Program(err);
+  }else if(!idle_alarm){
+    idle_alarm=true;
+    DBG dbgLog(LOG_ERR,"[PRG] Safety check failed with no program running - error %d (kiln %.1fC, housing %.1fC). Relays off, alarm on\n",err,kiln_temp,case_temp);
+    Disable_SSR();
+    Disable_EMR();
+    START_Alarm();
   }
 }
 
@@ -558,7 +571,9 @@ void Program_Loop(void * parameter){
 static uint16_t cnt1=0;
 uint32_t now;
 
+ esp_task_wdt_add(NULL);   // this task drives the SSR - restart the ESP32 if it stops running (see setup())
  for(;;){
+    esp_task_wdt_reset();
 
     now = millis();
  
@@ -568,6 +583,7 @@ uint32_t now;
 
       // Update temperature readout
       Update_TemperatureA();
+      SAFETY_Check();
       Heater_safety_check();
 
       // Restart requested by a finished firmware update (web handlers must not block or restart)
@@ -600,9 +616,7 @@ uint32_t now;
         // Do all the program recalc
         Program_calculate_steps();
 
-        if(cnt1==6){
-          SAFETY_Check();
-        }else if(cnt1==9){
+        if(cnt1==9){
           cnt1=0;
           if(LCD_Main==MAIN_VIEW2 && (Program_run_state==PR_RUNNING || Program_run_state==PR_PAUSED)) LCD_display_mainv2();
           DBG dbgLog(LOG_INFO,"[PRG] Pid_out RAW:%.2f Pid_out:%.2f Now-window:%d WindowSize:%d Prg_state:%d\n",pid_out,pid_out*PID_WINDOW_DIVIDER,(now - windowStartTime), Prefs[PRF_PID_WINDOW].value.uint16, (byte)Program_run_state);

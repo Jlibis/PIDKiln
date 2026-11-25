@@ -231,8 +231,8 @@ char tmp[30];
         break;
 
       case PRF_MIN_TEMP:
-        Prefs[PRF_MIN_TEMP].type=UINT8;
-        Prefs[PRF_MIN_TEMP].value.uint8=10;
+        Prefs[PRF_MIN_TEMP].type=INT16;   // signed - unheated workshops go below 0C
+        Prefs[PRF_MIN_TEMP].value.int16=10;
         break;
       case PRF_MAX_TEMP:
         Prefs[PRF_MAX_TEMP].type=UINT16;

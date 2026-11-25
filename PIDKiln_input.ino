@@ -140,7 +140,7 @@ void Input_Loop(void * parameter) {
       DBG dbgLog(LOG_DEBUG,"[INPUT] Encoder rotated %d\n",encoderValue);
       encoderValue=0;
     }
-    yield();
+    vTaskDelay(pdMS_TO_TICKS(10));  // yield() would not let lower priority tasks (IDLE0) run - this loop starved them
   }
 }
 

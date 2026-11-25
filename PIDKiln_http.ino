@@ -65,7 +65,7 @@ String Preferences_parser(const String& var){
  else if(var=="Initial_Date") return html_escape(String(Prefs[PRF_INIT_DATE].value.str));
  else if(var=="Initial_Time") return html_escape(String(Prefs[PRF_INIT_TIME].value.str));
  
- else if(var=="MIN_Temperature") return String(Prefs[PRF_MIN_TEMP].value.uint8);
+ else if(var=="MIN_Temperature") return String(Prefs[PRF_MIN_TEMP].value.int16);
  else if(var=="MAX_Temperature") return String(Prefs[PRF_MAX_TEMP].value.uint16);
  else if(var=="MAX_Housing_Temperature") return String(Prefs[PRF_MAX_HOUSING_TEMP].value.uint16);
  else if(var=="Thermal_Runaway") return String(Prefs[PRF_THERMAL_RUN].value.uint16);

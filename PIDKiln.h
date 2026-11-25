@@ -177,6 +177,7 @@ typedef enum {
 constexpr double HEATING_STALL_DELTA=5;   // Thermal_Runaway: set point this far above the kiln starts the window, the kiln must gain this much within it
 constexpr double SSR_STUCK_DELTA=25;      // kiln warming by this much above its lowest temperature since the SSR was commanded off = stuck SSR
                                           //  (leaves room for heat still soaking in from the elements after switching off)
+constexpr uint32_t WDT_TIMEOUT_MS=15000;  // task watchdog: restart (relays off) if Program_Loop or AsyncTCP hangs this long
 
 /*
 ** Filesystem definintions

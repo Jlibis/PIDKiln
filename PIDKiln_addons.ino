@@ -105,7 +105,7 @@ double kiln_tmp1;
       TempA_errors++;
       DBG dbgLog(LOG_ERR,"[ADDONS] ThermocoupleA had an error but we are still below grace threshold - continue. Error %d of %d\n",TempA_errors,Prefs[PRF_ERROR_GRACE_COUNT].value.uint8);
     }else{
-      ABORT_Program(PR_ERR_MAX31A_INT_ERR);
+      ABORT_Program(PR_ERR_MAX31A_KPROBE);   // thermocouple fault (open, short) - INT_ERR is for the chip itself
     }
     return;
   }
@@ -160,7 +160,7 @@ double case_tmp1;
       TempB_errors++;
       DBG dbgLog(LOG_ERR,"[ADDONS] ThermocoupleB had an error but we are still below grace threshold - continue. Error %d of %d\n",TempB_errors,Prefs[PRF_ERROR_GRACE_COUNT].value.uint8);
     }else{
-      ABORT_Program(PR_ERR_MAX31B_INT_ERR);
+      ABORT_Program(PR_ERR_MAX31B_KPROBE);   // thermocouple fault (open, short) - INT_ERR is for the chip itself
     }
     return;
   }
@@ -245,7 +245,14 @@ void Setup_Addons(){
 
   pinMode(ALARM_PIN, OUTPUT);
 
+  // Start with everything off - also after a watchdog restart in the middle of a firing
+  digitalWrite(SSR1_RELAY_PIN, LOW);
+#ifdef SSR2_RELAY_PIN
+  digitalWrite(SSR2_RELAY_PIN, LOW);
+#endif
   SSR_On=false;
+  Disable_EMR();
+  digitalWrite(ALARM_PIN, LOW);
   ThermocoupleA.begin(ESP32_SPI);
 #ifdef MAXCS2
   ThermocoupleB.begin(ESP32_SPI);
