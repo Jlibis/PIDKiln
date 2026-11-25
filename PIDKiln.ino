@@ -26,8 +26,8 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <WiFiUdp.h>
-#include <FS.h>   // Include the SPIFFS library
-#include <SPIFFS.h>
+#include <FS.h>
+#include <LittleFS.h>
 #include <ESPAsyncWebServer.h>
 #include <rtc_wdt.h>
 #include <esp_task_wdt.h>
@@ -38,7 +38,8 @@
 ** Static, editable parameters. Some of them, can be replaces with PIDKiln preferences.
 ** Please set them up before uploading.
 */
-#define TEMPLATE_PLACEHOLDER '~' // THIS DOESN'T WORK NOW FROM HERE - replace it in library! Arduino/libraries/ESPAsyncWebServer/src/WebResponseImpl.h
+// Web templates use ~VAR~ placeholders. Defining TEMPLATE_PLACEHOLDER here has no effect on the library -
+// pass -DTEMPLATE_PLACEHOLDER='~' as a build flag (sketch.yaml / README shows the command).
 
 // If you have Wrover with PSRAM
 #define MALLOC ps_malloc
@@ -52,16 +53,17 @@
 //#define DEBUG false
 
 
-// Close cleanly file and delete file from SPIFFS
+// Close cleanly file and delete file from the filesystem
 //
 boolean delete_file(File &newFile){
-char filename[32];
+char filename[MAX_FILENAME+2];
  if(newFile){
-    strcpy(filename,newFile.name());
+    // path() is the full path; name() is only the basename since ESP32 core 2.0
+    strlcpy(filename,newFile.path(),sizeof(filename));
     DBG dbgLog(LOG_DEBUG,"[MAIN] Deleting uploaded file: \"%s\"\n",filename);
     newFile.flush();
     newFile.close();
-    if(SPIFFS.remove(filename)){
+    if(LittleFS.remove(filename)){
       DBG dbgLog(LOG_DEBUG,"[MAIN] Deleted!");
     }
     Generate_INDEX(); // Just in case user wanted to overwrite existing file
@@ -99,6 +101,27 @@ char c;
 }
 
 
+// Mount the filesystem and create the directories PIDKiln writes to.
+// LittleFS has real directories (SPIFFS had a flat namespace), so they must exist before
+// files are created in them.
+//
+boolean Setup_FS(){
+  if(!LittleFS.begin(FORMAT_FS_IF_FAILED)){
+    DBG dbgLog(LOG_ERR,"[MAIN] An Error has occurred while mounting LittleFS\n");
+    return false;
+  }
+  if(!LittleFS.exists("/index.html"))
+    DBG dbgLog(LOG_ERR,"[MAIN] No web interface on the filesystem - upload the LittleFS data image (see README)\n");
+
+  const char *dirs[]={PRG_Directory,LOG_Directory,PREFS_DIRECTORY};
+  for(const char *dir: dirs){
+    if(!LittleFS.exists(dir) && !LittleFS.mkdir(dir))
+      DBG dbgLog(LOG_ERR,"[MAIN] Failed to create directory %s\n",dir);
+  }
+  return true;
+}
+
+
 // Main setup that invokes other subsetups to initialize other modules
 //
 void setup() {
@@ -123,11 +146,8 @@ void setup() {
   // Serial port for debugging purposes
   initSerial();
 
-  // Initialize SPIFFS
-  if (!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)) {
-    DBG dbgLog(LOG_DEBUG,"[MAIN] An Error has occurred while mounting SPIFFS\n");
-    return;
-  }
+  // Initialize filesystem
+  if (!Setup_FS()) return;
 
   // Load all preferences from disk
   Load_prefs();

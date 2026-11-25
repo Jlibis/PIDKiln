@@ -42,8 +42,20 @@ jobs:
           --profile wrover
           --build-property "compiler.cpp.extra_flags=-DTEMPLATE_PLACEHOLDER='~'"
           --warnings default
+          --build-path "${{ runner.temp }}/build-work"
           --output-dir build
           .
+
+      # LittleFS image of data/ (web UI, default config, sample programs), sized to the data
+      # partition of the partition table used by the build. Flash it with the web flash page
+      # (the file name must contain "littlefs") or with esptool.
+      - name: Build LittleFS data image
+        run: |
+          MKLITTLEFS=$(arduino-cli compile --profile wrover --show-properties . | sed -n 's/^runtime\.tools\.mklittlefs\.path=//p')
+          SIZE=$(awk -F, '$1 ~ /^spiffs/ {gsub(/ /,"",$5); print $5}' "${{ runner.temp }}/build-work/partitions.csv")
+          test -x "$MKLITTLEFS/mklittlefs" && test -n "$SIZE"
+          "$MKLITTLEFS/mklittlefs" -c data -p 256 -b 4096 -s "$SIZE" build/PIDKiln.littlefs.bin
+          echo "Data partition size: $SIZE"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

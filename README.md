@@ -4,7 +4,7 @@ PIDKiln is PID temperature controller, for any task involving high temperatures 
 ## Key features:
 - Interface accessible both from LCD screen and WWW Webpage
 - Unlimited (limited only by storage) temperature programs number, program file size limited to 10KiB (but this is artificial limit - can be extended)
-- Internal ESP SPIFFS storage for programs, data, logs, configuration (perhaps later SD - but I'm not sure yet)
+- Internal ESP flash storage (LittleFS) for programs, data, logs, configuration
 - Local preferences on disk, editable with Web interface
 - Online monitoring, program management, editing, graphs and kiln control
 - Build in clock synchronised with NTP servers (if Internet connected)
@@ -181,7 +181,8 @@ arduino-cli compile --profile wrover --build-property "compiler.cpp.extra_flags=
 arduino-cli upload  --profile wrover -p <your serial port> .
 ```
 
-The CI build (GitHub Actions) uploads a ready-made `PIDKiln.ino.bin` as an artifact.
+The CI build (GitHub Actions) uploads ready-made `PIDKiln.ino.bin` and `PIDKiln.littlefs.bin` (web
+interface and default files) as artifacts.
 
 **With Arduino IDE 2.x.** Install the ESP32 core 3.x, and the libraries ESP Async WebServer and Async
 TCP (by ESP32Async), PID (Brett Beauregard), U8g2 and, if you use the power meter, EmonLib - the
@@ -189,8 +190,16 @@ versions listed in `sketch.yaml`. Copy the two folders from `libraries/` into yo
 folder. The web templates need `~` as placeholder: either add `-DTEMPLATE_PLACEHOLDER='~'` to your
 build flags, or set `TEMPLATE_PLACEHOLDER` to `'~'` in the ESPAsyncWebServer `WebResponseImpl.h`.
 
-**Upload the data directory** to SPIFFS, for example with the ESP32FS plugin in Arduino IDE 1.x
-(Menu -> Tools -> ESP32 Sketch Data Upload).
+**Upload the data directory** as a LittleFS image: with the
+[arduino-littlefs-upload](https://github.com/earlephilhower/arduino-littlefs-upload) plugin in IDE 2,
+by flashing the CI-built `PIDKiln.littlefs.bin` (e.g. `esptool.py --chip esp32 write_flash 0x290000
+PIDKiln.littlefs.bin` for the default partition table), or through the web flash page.
+
+**Upgrading from PIDKiln 1.5 or older (SPIFFS):** the filesystem is now LittleFS, which cannot read the
+old SPIFFS partition. The first boot of the new firmware formats it, so **download your programs and
+`/etc/pidkiln.conf` from the web interface first**. Then flash the new firmware, open the device in a
+browser - it shows a built-in upload page because the web interface files are gone - and upload
+`PIDKiln.littlefs.bin`. Restore your programs and settings afterwards.
 
 ## Documentation
 

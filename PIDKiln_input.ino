@@ -16,7 +16,7 @@ int lastencoderValueT = 0;
 byte menu_pos=0,screen_pos=0;
 
 // Tell compiler it's interrupt function - otherwise it won't work on ESP
-void ICACHE_RAM_ATTR handleInterrupt ();
+void IRAM_ATTR handleInterrupt ();
 
 
 // What to do if button pressed in menu

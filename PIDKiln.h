@@ -169,8 +169,10 @@ typedef enum {
 ** Filesystem definintions
 **
 */
-#define MAX_FILENAME 30   // directory+name can be max 32 on SPIFFS
-#define MAX_PROGNAME 20   //  - cos we already have /programs/ directory...
+// Historical SPIFFS limits (32 chars incl. directory). LittleFS allows longer names, but the web UI
+// (js/programs.js) and the fixed-size buffers below still assume these values - change them together.
+#define MAX_FILENAME 30   // directory + name
+#define MAX_PROGNAME 20   // program name alone (we already have the /programs/ prefix)
 
 const char allowed_chars_in_filename[]="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890._";
 
@@ -194,7 +196,7 @@ uint16_t Logs_DIR_size=0;
 
  
 /* 
-** Spiffs settings
+** Filesystem (LittleFS) settings
 **
 */
 #define PRG_DIRECTORY "/programs"
@@ -203,12 +205,15 @@ const char *PRG_Directory = PRG_DIRECTORY;  // I started to use it so often... s
 
 const char *LOG_Directory = "/logs";
 
-#define FORMAT_SPIFFS_IF_FAILED true
+// Format the data partition if it can't be mounted (e.g. it still holds an old SPIFFS image).
+// The web UI then has to be restored by uploading the LittleFS data image - see README.
+#define FORMAT_FS_IF_FAILED true
 
 /*
 **  Preference definitions
 */
-#define PREFS_FILE "/etc/pidkiln.conf"
+#define PREFS_DIRECTORY "/etc"
+#define PREFS_FILE PREFS_DIRECTORY "/pidkiln.conf"
 
 // Other variables
 //

@@ -1,3 +1,14 @@
+Unreleased
+- reproducible build: sketch.yaml (arduino-cli profile) pins the ESP32 core 3.3.13 and all library
+  versions; MAX31855 fork and Syslog are git submodules; GitHub Actions builds firmware and data image
+- TEMPLATE_PLACEHOLDER is passed as a build flag - no manual edit of the ESPAsyncWebServer library
+- filesystem moved from SPIFFS (deprecated) to LittleFS - see README "Upgrading": the first boot
+  formats the old SPIFFS partition, back up programs and pidkiln.conf first
+- built-in fallback upload page when the filesystem has no web interface files
+- web flash page accepts LittleFS data images (file name containing "littlefs")
+- fixed deleting rejected program uploads (removed the wrong path since ESP32 core 2.0)
+- replaced deprecated ICACHE_RAM_ATTR and a raw ESP32 efuse register read with current APIs
+
 1.5 (2024.12.18)
 - updated code to compile against ESP3+ API, Arduino 2+ and latest asynce libraries
 
